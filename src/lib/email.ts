@@ -6,9 +6,9 @@ import { Resend } from "resend";
  * logged instead of sent, so nothing breaks before the account exists.
  */
 export async function sendEmail(opts: { to: string; subject: string; text: string; html?: string }) {
-  const key = process.env.RESEND_API_KEY;
+  const key = process.env.RESEND_API_KEY?.trim();
   const from = process.env.EMAIL_FROM || "Yoga in the Stars <onboarding@resend.dev>";
-  if (!key) {
+  if (!key || key.endsWith("...")) {
     console.log(`[email:dev] to=${opts.to} subject=${opts.subject}\n${opts.text}`);
     return { ok: true, dev: true };
   }

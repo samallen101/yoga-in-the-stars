@@ -68,3 +68,13 @@ Regenerate database types after changing the schema (needs a Postgres with the m
 ```
 python3 scripts/gen-types.py "postgresql://postgres:<password>@db.<project>.supabase.co:5432/postgres"
 ```
+
+## Smoke test
+
+With the dev server running against a real Supabase project:
+
+```
+CHROMIUM_PATH=/path/to/chrome node scripts/smoke.mjs
+```
+
+It creates throwaway users, books with a class pass, fills a class to test the waitlist and promotion, checks in as a teacher, cancels a class, hits the admin pages and both crons, then deletes the users. Stripe flows are not covered (they need test keys and a webhook forwarder).
