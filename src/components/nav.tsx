@@ -34,7 +34,7 @@ export function Nav({ profile }: Props) {
               key={l.href}
               href={l.href}
               className={`rounded-full px-3 py-1.5 text-sm ${
-                pathname.startsWith(l.href) ? "bg-brand-soft text-brand" : "text-ink-soft hover:text-ink"
+                pathname === l.href || pathname.startsWith(l.href + "/") ? "bg-brand-soft text-brand" : "text-ink-soft hover:text-ink"
               }`}
             >
               {l.label}
