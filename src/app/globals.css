@@ -1,26 +1,95 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #faf7f2;
+  --bg-soft: #f2ede4;
+  --card: #ffffff;
+  --ink: #1f1b2e;
+  --ink-soft: #5b566b;
+  --line: #e6e0d6;
+  --brand: #3b2f6b;
+  --brand-soft: #ebe6f7;
+  --accent: #c9a24a;
+  --accent-soft: #f7efd9;
+  --green: #2f7d5b;
+  --green-soft: #e3f2ea;
+  --orange: #c2701c;
+  --orange-soft: #fbeedd;
+  --red: #b5432f;
+  --red-soft: #f8e3df;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-bg: var(--bg);
+  --color-bg-soft: var(--bg-soft);
+  --color-card: var(--card);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-line: var(--line);
+  --color-brand: var(--brand);
+  --color-brand-soft: var(--brand-soft);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-green: var(--green);
+  --color-green-soft: var(--green-soft);
+  --color-orange: var(--orange);
+  --color-orange-soft: var(--orange-soft);
+  --color-red: var(--red);
+  --color-red-soft: var(--red-soft);
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-fraunces), Georgia, serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  color-scheme: light;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+}
+
+h1, h2, h3, .serif {
+  font-family: var(--font-serif);
+  letter-spacing: -0.01em;
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-primary {
+    @apply btn bg-brand text-white hover:opacity-90;
+  }
+  .btn-secondary {
+    @apply btn bg-brand-soft text-brand hover:bg-brand/15;
+  }
+  .btn-ghost {
+    @apply btn text-ink-soft hover:bg-bg-soft;
+  }
+  .btn-danger {
+    @apply btn bg-red-soft text-red hover:bg-red/20;
+  }
+  .card {
+    @apply rounded-2xl border border-line bg-card p-5 shadow-[0_1px_2px_rgba(31,27,46,0.04)];
+  }
+  .input {
+    @apply w-full rounded-xl border border-line bg-white px-3.5 py-2.5 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/15;
+  }
+  .label {
+    @apply mb-1 block text-xs font-medium uppercase tracking-wide text-ink-soft;
+  }
+  .pill {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
+  }
+  .table {
+    @apply w-full text-sm;
+  }
+  .table th {
+    @apply text-left text-xs font-medium uppercase tracking-wide text-ink-soft py-2 border-b border-line;
+  }
+  .table td {
+    @apply py-3 border-b border-line align-top;
+  }
 }
