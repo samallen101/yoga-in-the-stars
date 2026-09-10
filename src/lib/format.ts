@@ -4,7 +4,8 @@ export const TZ = "Europe/London";
 
 export function gbp(pence: number) {
   if (pence === 0) return "Free";
-  return new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(pence / 100);
+  const whole = pence % 100 === 0;
+  return new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP", minimumFractionDigits: whole ? 0 : 2, maximumFractionDigits: 2 }).format(pence / 100);
 }
 
 export function fmtDate(iso: string, pattern = "EEE d MMM") {

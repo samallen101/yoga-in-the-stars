@@ -629,6 +629,14 @@ export type Database = {
           red_after_days: number
           timezone: string
           updated_at: string
+          contact_whatsapp: string | null
+          contact_email: string | null
+          address_line: string
+          promo_text: string | null
+          promo_url: string | null
+          instagram_url: string | null
+          facebook_url: string | null
+          youtube_url: string | null
         }
         Insert: {
           id?: number
@@ -641,6 +649,14 @@ export type Database = {
           red_after_days?: number
           timezone?: string
           updated_at?: string
+          contact_whatsapp?: string | null
+          contact_email?: string | null
+          address_line?: string
+          promo_text?: string | null
+          promo_url?: string | null
+          instagram_url?: string | null
+          facebook_url?: string | null
+          youtube_url?: string | null
         }
         Update: {
           id?: number
@@ -653,6 +669,14 @@ export type Database = {
           red_after_days?: number
           timezone?: string
           updated_at?: string
+          contact_whatsapp?: string | null
+          contact_email?: string | null
+          address_line?: string
+          promo_text?: string | null
+          promo_url?: string | null
+          instagram_url?: string | null
+          facebook_url?: string | null
+          youtube_url?: string | null
         }
         Relationships: []
       }

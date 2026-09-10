@@ -14,6 +14,21 @@ export default async function SettingsPage({ searchParams }: PageProps<"/admin/s
       {msg && <Notice kind="success">{msg}</Notice>}
       <form action={saveSettings} className="card space-y-4">
         <div><label className="label">Club name</label><input name="club_name" defaultValue={s?.club_name} className="input" /></div>
+        <div className="grid grid-cols-2 gap-3">
+          <div><label className="label">Public WhatsApp number</label><input name="contact_whatsapp" defaultValue={s?.contact_whatsapp ?? ""} className="input" placeholder="+447..." /></div>
+          <div><label className="label">Public email</label><input name="contact_email" defaultValue={s?.contact_email ?? ""} className="input" placeholder="hello@..." /></div>
+        </div>
+        <div><label className="label">Address (shown on the homepage and contact page)</label><input name="address_line" defaultValue={s?.address_line ?? ""} className="input" /></div>
+        <div>
+          <label className="label">Promo bar text (blank to hide)</label>
+          <textarea name="promo_text" rows={2} defaultValue={s?.promo_text ?? ""} className="input" />
+        </div>
+        <div><label className="label">Promo bar link</label><input name="promo_url" defaultValue={s?.promo_url ?? "/membership"} className="input" /></div>
+        <div className="grid grid-cols-3 gap-3">
+          <div><label className="label">Instagram</label><input name="instagram_url" defaultValue={s?.instagram_url ?? ""} className="input" /></div>
+          <div><label className="label">Facebook</label><input name="facebook_url" defaultValue={s?.facebook_url ?? ""} className="input" /></div>
+          <div><label className="label">YouTube</label><input name="youtube_url" defaultValue={s?.youtube_url ?? ""} className="input" /></div>
+        </div>
         <div>
           <label className="label">Members' WhatsApp community invite link</label>
           <input name="whatsapp_community_url" defaultValue={s?.whatsapp_community_url ?? ""} className="input" placeholder="https://chat.whatsapp.com/..." />

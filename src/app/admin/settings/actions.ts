@@ -12,6 +12,14 @@ export async function saveSettings(formData: FormData) {
     .from("settings")
     .update({
       club_name: str("club_name") || "Yoga in the Stars",
+      contact_whatsapp: str("contact_whatsapp") || null,
+      contact_email: str("contact_email") || null,
+      address_line: str("address_line") || "Upstairs The Heathcote and Star, 344 Grove Green Road, E11 4EA",
+      promo_text: str("promo_text") || null,
+      promo_url: str("promo_url") || "/membership",
+      instagram_url: str("instagram_url") || null,
+      facebook_url: str("facebook_url") || null,
+      youtube_url: str("youtube_url") || null,
       whatsapp_community_url: str("whatsapp_community_url") || null,
       whatsapp_team_numbers: str("whatsapp_team_numbers").split(",").map((s) => s.trim()).filter(Boolean),
       booking_cutoff_minutes: num("booking_cutoff_minutes", 0),

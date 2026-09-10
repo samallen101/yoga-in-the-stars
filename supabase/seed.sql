@@ -5,18 +5,18 @@ insert into locations (name, address) values
   ('The Room Above the Pub', 'London');
 
 insert into membership_plans (name, description, price_pence, interval, classes_per_period, event_discount_percent, sort_order) values
-  ('Club Membership', 'Every regular class included, member prices on events, and you keep the space alive.', 6500, 'month', null, 30, 1),
-  ('Supporter Membership', 'Everything in Club, plus a bit extra towards the community pot. For people who want to give more.', 8500, 'month', null, 50, 2);
+  ('Low income', 'Pay as you wish membership. Unlimited sessions. All memberships are born equal.', 6500, 'month', null, 100, 1),
+  ('Standard', 'Pay as you wish membership. Unlimited sessions. All memberships are born equal.', 7500, 'month', null, 100, 2),
+  ('Supporter', 'Pay as you wish membership. Unlimited sessions, and a bit more towards the community.', 9000, 'month', null, 100, 3);
 
 insert into class_pass_products (name, description, credits, price_pence, validity_days, sort_order) values
-  ('5 Class Pass', 'Five classes to use whenever you like.', 5, 5500, 90, 1),
-  ('10 Class Pass', 'Ten classes, four months to use them.', 10, 10000, 120, 2);
+  ('3 Class Pass', 'Three classes to use whenever you like.', 3, 3300, 90, 1);
 
 insert into class_types (name, description, duration_minutes, colour, default_capacity, default_pricing, default_drop_in_pence) values
-  ('Slow Flow', 'A steady, mindful vinyasa. All levels.', 60, '#3b2f6b', 16, 'members_included', 1200),
-  ('Morning Flow', 'Wake the body up before work.', 60, '#c9a24a', 16, 'members_included', 1200),
-  ('Restorative', 'Long holds, props, and a proper rest.', 75, '#2f7d5b', 14, 'members_included', 1200),
-  ('Community Yoga', 'Pay what you wish. Everyone welcome, no experience needed.', 60, '#c2701c', 20, 'pay_what_you_wish', 0),
+  ('Slow Flow', 'A steady, mindful vinyasa. All levels.', 60, '#3b2f6b', 16, 'members_included', 1300),
+  ('Morning Flow', 'Wake the body up before work.', 60, '#c9a24a', 16, 'members_included', 1300),
+  ('Restorative', 'Long holds, props, and a proper rest.', 75, '#2f7d5b', 14, 'members_included', 1300),
+  ('The Yoga-Social', 'A free weekly meet-up and practice, funded by National Lottery Community Fund. Always free for everyone.', 60, '#c2701c', 20, 'free', 0),
   ('Breathwork', 'Guided breathwork journey. Drop-in or member price.', 90, '#b5432f', 20, 'members_included', 1500);
 
 -- Two weeks of sessions from next Monday. Times are Europe/London.
@@ -26,7 +26,7 @@ with base as (
   select * from (values
     ('Morning Flow', 0, '07:30', 'Mon'),
     ('Slow Flow',    0, '18:30', 'Mon'),
-    ('Community Yoga', 1, '19:00', 'Tue'),
+    ('The Yoga-Social', 1, '19:00', 'Tue'),
     ('Slow Flow',    2, '18:30', 'Wed'),
     ('Morning Flow', 3, '07:30', 'Thu'),
     ('Breathwork',   3, '19:30', 'Thu'),

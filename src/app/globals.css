@@ -1,22 +1,23 @@
 @import "tailwindcss";
 
 :root {
-  --bg: #faf7f2;
-  --bg-soft: #f2ede4;
-  --card: #ffffff;
-  --ink: #1f1b2e;
-  --ink-soft: #5b566b;
-  --line: #e6e0d6;
-  --brand: #3b2f6b;
-  --brand-soft: #ebe6f7;
-  --accent: #c9a24a;
-  --accent-soft: #f7efd9;
+  --bg: #f6f1e7;
+  --bg-soft: #ebe3d3;
+  --card: #fbf8f2;
+  --ink: #1f1c17;
+  --ink-soft: #6b655a;
+  --line: #d9d0bf;
+  --brand: #1f1c17;
+  --brand-soft: #ebe3d3;
+  --accent: #7a3e1d;
+  --accent-soft: #f0e3d6;
+  --gold: #c9a24a;
   --green: #2f7d5b;
-  --green-soft: #e3f2ea;
-  --orange: #c2701c;
-  --orange-soft: #fbeedd;
-  --red: #b5432f;
-  --red-soft: #f8e3df;
+  --green-soft: #e3efe6;
+  --orange: #b8651c;
+  --orange-soft: #f7e8d6;
+  --red: #a63d2a;
+  --red-soft: #f5e1dc;
 }
 
 @theme inline {
@@ -30,14 +31,15 @@
   --color-brand-soft: var(--brand-soft);
   --color-accent: var(--accent);
   --color-accent-soft: var(--accent-soft);
+  --color-gold: var(--gold);
   --color-green: var(--green);
   --color-green-soft: var(--green-soft);
   --color-orange: var(--orange);
   --color-orange-soft: var(--orange-soft);
   --color-red: var(--red);
   --color-red-soft: var(--red-soft);
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-serif: var(--font-fraunces), Georgia, serif;
+  --font-sans: var(--font-instrument-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-instrument-serif), Georgia, "Times New Roman", serif;
 }
 
 html {
@@ -53,38 +55,45 @@ body {
 h1, h2, h3, .serif {
   font-family: var(--font-serif);
   letter-spacing: -0.01em;
+  font-weight: 400;
 }
 
 @layer components {
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed bg-brand text-white hover:opacity-90;
+    @apply inline-flex items-center justify-center gap-2 px-5 py-3 text-sm font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed bg-ink text-bg hover:opacity-90;
   }
   .btn-secondary {
-    @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed bg-brand-soft text-brand hover:bg-brand/15;
+    @apply inline-flex items-center justify-center gap-2 px-5 py-3 text-sm font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed border border-ink text-ink hover:bg-bg-soft;
   }
   .btn-ghost {
-    @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed text-ink-soft hover:bg-bg-soft;
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed text-ink-soft underline underline-offset-4 hover:text-ink;
   }
   .btn-danger {
-    @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed bg-red-soft text-red hover:bg-red/20;
+    @apply inline-flex items-center justify-center gap-2 px-5 py-3 text-sm font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed bg-red-soft text-red hover:bg-red/20;
   }
   .card {
-    @apply rounded-2xl border border-line bg-card p-5 shadow-[0_1px_2px_rgba(31,27,46,0.04)];
+    @apply border border-line bg-card p-5;
   }
   .input {
-    @apply w-full rounded-xl border border-line bg-white px-3.5 py-2.5 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/15;
+    @apply w-full border border-line bg-white px-3.5 py-2.5 text-sm outline-none focus:border-ink focus:ring-2 focus:ring-ink/10;
   }
   .label {
-    @apply mb-1 block text-xs font-medium uppercase tracking-wide text-ink-soft;
+    @apply mb-1 block text-xs font-semibold uppercase tracking-[0.14em] text-ink-soft;
+  }
+  .caps {
+    @apply text-xs font-semibold uppercase tracking-[0.14em];
   }
   .pill {
-    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
+    @apply inline-flex items-center px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide;
+  }
+  .rule {
+    @apply border-t border-ink;
   }
   .table {
     @apply w-full text-sm;
   }
   .table th {
-    @apply text-left text-xs font-medium uppercase tracking-wide text-ink-soft py-2 border-b border-line;
+    @apply text-left text-xs font-semibold uppercase tracking-[0.14em] text-ink-soft py-2 border-b border-ink;
   }
   .table td {
     @apply py-3 border-b border-line align-top;
