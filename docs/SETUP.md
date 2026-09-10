@@ -30,7 +30,7 @@ Membership plans create their own Stripe product and price the first time someon
 
 1. Import the GitHub repo. Framework: Next.js. Root: `/`.
 2. Add every variable from `.env.example` under Environment Variables.
-3. `CRON_SECRET`: any long random string. Vercel sends it automatically to the two cron routes in `vercel.json` (outbox every minute, daily jobs at 07:00 UTC).
+3. `CRON_SECRET`: any long random string. Vercel sends it automatically to the cron routes in `vercel.json`. Vercel's free (Hobby) plan only allows daily crons, so the outbox is flushed every minute by n8n instead: a Schedule trigger (every 1 minute) → HTTP Request `GET https://<your-domain>/api/cron/outbox` with header `Authorization: Bearer <CRON_SECRET>`. The daily cron at 07:00 UTC handles reminders, engagement flags and expiries, with a 06:30 outbox run as a safety net.
 4. Add the custom domain, then update `NEXT_PUBLIC_SITE_URL`, the Supabase redirect URLs and the Stripe webhook URL to match.
 
 ## 4. Resend (transactional email)
