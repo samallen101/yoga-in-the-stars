@@ -255,11 +255,13 @@ create table outbox_events (
   user_id uuid references profiles(id) on delete set null,
   payload jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now(),
-  delivered_at timestamptz,
+  delivered_at timestamptz,          -- forwarded to n8n
+  emailed_at timestamptz,            -- transactional email handled by the app
   attempts integer not null default 0,
   last_error text
 );
 create index outbox_undelivered_idx on outbox_events(created_at) where delivered_at is null;
+create index outbox_unemailed_idx on outbox_events(created_at) where emailed_at is null;
 
 -- ---------------------------------------------------------------------------
 -- Broadcasts sent by admins

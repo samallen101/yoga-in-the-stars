@@ -545,6 +545,7 @@ export type Database = {
           payload: Json
           created_at: string
           delivered_at: string | null
+          emailed_at: string | null
           attempts: number
           last_error: string | null
         }
@@ -555,6 +556,7 @@ export type Database = {
           payload?: Json
           created_at?: string
           delivered_at?: string | null
+          emailed_at?: string | null
           attempts?: number
           last_error?: string | null
         }
@@ -565,6 +567,7 @@ export type Database = {
           payload?: Json
           created_at?: string
           delivered_at?: string | null
+          emailed_at?: string | null
           attempts?: number
           last_error?: string | null
         }

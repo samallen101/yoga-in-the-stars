@@ -16,7 +16,7 @@ export default async function MePage({ searchParams }: PageProps<"/me">) {
   const db = createAdminClient();
 
   const [{ data: membership }, { data: passes }, { data: upcoming }, { data: past }, { data: settings }] = await Promise.all([
-    db.from("memberships").select("*, membership_plans(*)").eq("user_id", me.user.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+    db.from("memberships").select("*, membership_plans(*)").eq("user_id", me.user.id).neq("status", "incomplete").order("created_at", { ascending: false }).limit(1).maybeSingle(),
     db.from("class_passes").select("*, class_pass_products(name)").eq("user_id", me.user.id).gt("credits_remaining", 0).gt("expires_at", new Date().toISOString()).order("expires_at"),
     db.from("bookings").select("*, class_sessions(*, class_types(name, colour), teacher:profiles!class_sessions_teacher_id_fkey(full_name))").eq("user_id", me.user.id).in("status", ["booked", "waitlisted"]).gte("class_sessions.starts_at", new Date().toISOString()).order("created_at"),
     db.from("bookings").select("id, status, class_sessions(starts_at, class_types(name))").eq("user_id", me.user.id).in("status", ["booked", "attended"]).lt("class_sessions.starts_at", new Date().toISOString()).limit(8),
@@ -89,7 +89,7 @@ export default async function MePage({ searchParams }: PageProps<"/me">) {
         <aside className="space-y-6">
           <div className="card">
             <h2 className="font-semibold text-brand mb-2">Membership</h2>
-            {membership && membership.status !== "incomplete" ? (
+            {membership ? (
               <>
                 <div className="flex items-center justify-between">
                   <span className="font-medium">{membership.membership_plans.name}</span>

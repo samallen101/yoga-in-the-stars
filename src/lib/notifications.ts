@@ -9,14 +9,14 @@ type Payload = Record<string, unknown>;
 /**
  * Turn outbox events into the emails the app sends itself (confirmations,
  * cancellations, welcome). WhatsApp and team pings are n8n's job, driven by the
- * same events. Emails are marked in payload._emailed so they are never re-sent.
+ * same events. emailed_at is set so nothing is ever re-sent.
  */
 export async function sendTransactionalEmails(limit = 50) {
   const db = createAdminClient();
   const { data: events } = await db
     .from("outbox_events")
     .select("*, profiles(email, full_name)")
-    .is("delivered_at", null)
+    .is("emailed_at", null)
     .order("created_at")
     .limit(limit);
 
@@ -26,9 +26,12 @@ export async function sendTransactionalEmails(limit = 50) {
 
   for (const e of events ?? []) {
     const payload = (e.payload ?? {}) as Payload;
-    if (payload._emailed || !e.profiles?.email) continue;
-    const first = (e.profiles.full_name ?? "there").split(" ")[0];
-    const to = e.profiles.email;
+    if (!e.profiles?.email && e.type !== "session.cancelled") {
+      await db.from("outbox_events").update({ emailed_at: new Date().toISOString() }).eq("id", e.id);
+      continue;
+    }
+    const first = (e.profiles?.full_name ?? "there").split(" ")[0];
+    const to = e.profiles?.email ?? "";
     const p = payload as Record<string, string | number | null | undefined>;
     let mail: { subject: string; text: string } | null = null;
 
@@ -117,15 +120,15 @@ export async function sendTransactionalEmails(limit = 50) {
           sent++;
         }
       }
-      await db.from("outbox_events").update({ payload: { ...payload, _emailed: true } }).eq("id", e.id);
+      await db.from("outbox_events").update({ emailed_at: new Date().toISOString() }).eq("id", e.id);
       continue;
     }
 
-    if (mail) {
+    if (mail && to) {
       await sendEmail({ to, ...mail });
       sent++;
     }
-    await db.from("outbox_events").update({ payload: { ...payload, _emailed: true } }).eq("id", e.id);
+    await db.from("outbox_events").update({ emailed_at: new Date().toISOString() }).eq("id", e.id);
   }
   return { sent };
 }
