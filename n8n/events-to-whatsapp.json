@@ -1,0 +1,137 @@
+{
+  "name": "YITS \u00b7 Events \u2192 WhatsApp",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "stars",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "webhook",
+      "name": "Outbox event",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "yits-outbox"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "secret",
+              "leftValue": "={{ $json.headers['x-stars-secret'] }}",
+              "rightValue": "REPLACE_WITH_OUTBOX_SECRET",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if",
+      "name": "Secret matches?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Every outbox event from the site arrives here. Return one item per WhatsApp\n// message to send: { to, template, params }. Templates must exist (approved) in\n// WhatsApp Manager with the same names and parameter counts. See n8n/README.md.\n//\n// Wording lives in the templates themselves; here we only choose WHO gets WHAT\n// and fill the placeholders.\n\nconst ev = $input.first().json.body ?? $input.first().json;\nconst { type, user, payload = {}, club = {} } = ev;\nconst out = [];\n\nconst first = (name) => (name || 'there').split(' ')[0];\nconst when = (iso) => {\n  if (!iso) return '';\n  const d = new Date(iso);\n  return d.toLocaleString('en-GB', { timeZone: 'Europe/London', weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });\n};\nconst timeOnly = (iso) => new Date(iso).toLocaleTimeString('en-GB', { timeZone: 'Europe/London', hour: '2-digit', minute: '2-digit' });\nconst canMessage = (p) => p && p.phone && p.whatsapp_opt_in;\nconst teamAlert = (text) => { for (const to of club.team_numbers || []) out.push({ to, template: 'yits_team_alert', params: [text] }); };\n\nswitch (type) {\n  case 'user.registered':\n    teamAlert(`New registration: ${user?.full_name || user?.email}`);\n    break;\n\n  case 'membership.purchased':\n  case 'membership.granted':\n    teamAlert(`${user?.full_name || user?.email} just joined: ${payload.plan}. First purchase, say hello!`);\n    if (canMessage(user)) out.push({ to: user.phone, template: 'yits_welcome', params: [first(user.full_name), payload.plan || 'membership', club.community_url || club.site_url] });\n    break;\n\n  case 'membership.payment_failed':\n    teamAlert(`Payment failed for ${user?.full_name || user?.email} (${payload.plan}). They've been emailed a link to update their card.`);\n    break;\n\n  case 'membership.cancelled':\n    teamAlert(`${user?.full_name || user?.email} cancelled their ${payload.plan}. Worth a message?`);\n    break;\n\n  case 'booking.reminder':\n    if (canMessage(user)) out.push({ to: user.phone, template: 'yits_reminder', params: [first(user.full_name), payload.class_name, timeOnly(payload.starts_at)] });\n    break;\n\n  case 'booking.promoted':\n    if (canMessage(user)) out.push({ to: user.phone, template: 'yits_promoted', params: [first(user.full_name), payload.class_name, when(payload.starts_at)] });\n    break;\n\n  case 'session.cancelled': {\n    const affected = payload.affected || [];\n    const messaged = affected.filter(canMessage);\n    for (const p of messaged) out.push({ to: p.phone, template: 'yits_cancelled', params: [first(p.full_name), payload.class_name, when(payload.starts_at), payload.reason || ''] });\n    teamAlert(`${payload.class_name} on ${when(payload.starts_at)} cancelled. ${affected.length} booked; ${messaged.length} sent a WhatsApp, the rest emailed.${(payload.paid_bookings || []).length ? ` ${payload.paid_bookings.length} paid drop-in(s) to refund.` : ''}`);\n    break;\n  }\n    break;\n\n  case 'engagement.flag_changed':\n    if (payload.to === 'orange' && canMessage(user)) out.push({ to: user.phone, template: 'yits_checkin', params: [first(user.full_name)] });\n    if (payload.to === 'red') teamAlert(`${payload.name || user?.full_name} has gone red (last class ${payload.last_attended_at ? when(payload.last_attended_at) : 'never'}). Time for a real conversation.`);\n    break;\n\n  case 'broadcast.whatsapp':\n    if (payload.phone) out.push({ to: payload.phone, template: 'yits_broadcast', params: [payload.message] });\n    break;\n\n  case 'class_pass.expiring':\n    if (canMessage(user)) out.push({ to: user.phone, template: 'yits_pass_expiring', params: [first(user.full_name), String(payload.credits_remaining), when(payload.expires_at)] });\n    break;\n\n  default:\n    // booking.created, class_pass.purchased, event_ticket.purchased etc. are emailed by the site. Nothing to do here.\n    break;\n}\n\n// Normalise numbers to digits only (Meta wants no +, spaces or dashes).\nreturn out.map((m) => ({ json: { ...m, to: String(m.to).replace(/[^0-9]/g, '') } }));"
+      },
+      "id": "code",
+      "name": "Build messages",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v21.0/REPLACE_WITH_PHONE_NUMBER_ID/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer REPLACE_WITH_WHATSAPP_ACCESS_TOKEN"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ messaging_product: 'whatsapp', to: $json.to, type: 'template', template: { name: $json.template, language: { code: 'en_GB' }, components: [{ type: 'body', parameters: ($json.params || []).map(p => ({ type: 'text', text: String(p ?? '') })) }] } }) }}",
+        "options": {}
+      },
+      "id": "send",
+      "name": "Send WhatsApp template",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        740,
+        -80
+      ]
+    }
+  ],
+  "connections": {
+    "Outbox event": {
+      "main": [
+        [
+          {
+            "node": "Secret matches?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Secret matches?": {
+      "main": [
+        [
+          {
+            "node": "Build messages",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Build messages": {
+      "main": [
+        [
+          {
+            "node": "Send WhatsApp template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

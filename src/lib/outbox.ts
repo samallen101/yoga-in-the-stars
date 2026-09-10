@@ -38,6 +38,9 @@ export async function flushOutbox(limit = 50) {
     return { delivered: 0, failed: events.length };
   }
 
+  const { data: settings } = await db.from("settings").select("club_name, whatsapp_team_numbers, whatsapp_community_url, contact_whatsapp").eq("id", 1).single();
+  const site = (process.env.NEXT_PUBLIC_SITE_URL || "").replace(/\/$/, "");
+
   let delivered = 0;
   let failed = 0;
   for (const e of events) {
@@ -45,7 +48,19 @@ export async function flushOutbox(limit = 50) {
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-Stars-Secret": process.env.OUTBOX_SECRET ?? "" },
-        body: JSON.stringify({ id: e.id, type: e.type, created_at: e.created_at, user: e.profiles, payload: e.payload }),
+        body: JSON.stringify({
+          id: e.id,
+          type: e.type,
+          created_at: e.created_at,
+          user: e.profiles,
+          payload: e.payload,
+          club: {
+            name: settings?.club_name ?? "Yoga in the Stars",
+            team_numbers: settings?.whatsapp_team_numbers ?? [],
+            community_url: settings?.whatsapp_community_url ?? null,
+            site_url: site,
+          },
+        }),
       });
       if (!res.ok) throw new Error(`n8n responded ${res.status}`);
       await db.from("outbox_events").update({ delivered_at: new Date().toISOString(), attempts: e.attempts + 1 }).eq("id", e.id);

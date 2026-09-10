@@ -307,7 +307,7 @@ export async function cancelSession(sessionId: string, reason: string, byUserId:
 
   const { data: bookings } = await db
     .from("bookings")
-    .select("*")
+    .select("*, profiles(id, full_name, email, phone, whatsapp_opt_in)")
     .eq("session_id", sessionId)
     .in("status", ["booked", "waitlisted"]);
 
@@ -325,6 +325,13 @@ export async function cancelSession(sessionId: string, reason: string, byUserId:
     starts_at: session.starts_at,
     reason,
     affected_user_ids: (bookings ?? []).map((b) => b.user_id),
+    affected: (bookings ?? []).map((b) => ({
+      user_id: b.user_id,
+      full_name: b.profiles?.full_name ?? null,
+      email: b.profiles?.email ?? null,
+      phone: b.profiles?.phone ?? null,
+      whatsapp_opt_in: b.profiles?.whatsapp_opt_in ?? false,
+    })),
     paid_bookings: (bookings ?? []).filter((b) => b.amount_pence > 0).map((b) => ({ user_id: b.user_id, amount_pence: b.amount_pence, order_id: b.order_id })),
   });
   return { ok: true, affected: bookings?.length ?? 0 };
