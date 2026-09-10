@@ -12,7 +12,16 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    "src/lib/database.types.ts",
   ]),
+  {
+    rules: {
+      // Prose in JSX is full of apostrophes; escaping them hurts readability.
+      "react/no-unescaped-entities": "off",
+      // Async Server Components read Date.now() on purpose (schedules, cutoffs).
+      "react-hooks/purity": "off",
+    },
+  },
 ]);
 
 export default eslintConfig;

@@ -121,7 +121,8 @@ for f, (args, ret) in functions.items():
         return f"{n}: {ts_type(ty, ty)}"
     argl = [x for x in (arg_ts(a) for a in args.split(",")) if x]
     ret_ts = ts_type(ret, ret)
-    lines.append(f"      {f}: {{ Args: {{ {'; '.join(argl)} }}; Returns: {ret_ts} }}")
+    args_ts = "{ " + "; ".join(argl) + " }" if argl else "Record<string, never>"
+    lines.append(f"      {f}: {{ Args: {args_ts}; Returns: {ret_ts} }}")
 lines.append("    }")
 lines.append("    Enums: {")
 for e, labels in enums.items():

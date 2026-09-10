@@ -683,8 +683,8 @@ export type Database = {
     }
     Functions: {
       current_role_of: { Args: { uid: string }; Returns: Database["public"]["Enums"]["user_role"] }
-      is_staff: { Args: {  }; Returns: boolean }
-      is_admin: { Args: {  }; Returns: boolean }
+      is_staff: { Args: Record<string, never>; Returns: boolean }
+      is_admin: { Args: Record<string, never>; Returns: boolean }
       is_active_member: { Args: { uid: string }; Returns: boolean }
       emit_event: { Args: { p_type: string; p_user_id: string; p_payload: Json }; Returns: string }
     }
