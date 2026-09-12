@@ -15,3 +15,6 @@ do $$ begin
   create role authenticated nologin;
   create role service_role nologin bypassrls;
 exception when duplicate_object then null; end $$;
+create or replace function auth.role() returns text language sql stable as $$
+  select nullif(current_setting('request.jwt.claim.role', true), '')
+$$;
