@@ -11,6 +11,7 @@ const links = [
   { href: "/admin/events", label: "Events" },
   { href: "/admin/broadcast", label: "Broadcast" },
   { href: "/admin/settings", label: "Settings" },
+  { href: "/admin/health", label: "Health" },
 ];
 
 export default async function AdminLayout({ children }: LayoutProps<"/admin">) {

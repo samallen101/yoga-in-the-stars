@@ -1,0 +1,122 @@
+{
+  "name": "YITS \u00b7 Uptime monitor (every 5 min)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      },
+      "id": "sched",
+      "name": "Every 5 minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://yoga-in-the-stars.vercel.app/api/health",
+        "options": {
+          "timeout": 20000,
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "http",
+      "name": "GET /api/health",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        240,
+        0
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const res = $input.first().json;\nconst status = res.status || 'unknown';\nconst bad = status === 'problem' || status === 'down';\nconst st = $getWorkflowStaticData('global');\nconst wasBad = !!st.bad;\nst.bad = bad;\nst.lastChecked = new Date().toISOString();\nif (bad) st.badSince = st.badSince || st.lastChecked; else st.badSince = null;\nconst failing = (res.checks || []).filter(c => !c.ok).map(c => `${c.name}: ${c.detail}`);\nconst notes = (res.checks || []).filter(c => c.ok && c.warn).map(c => `${c.name}: ${c.detail}`);\nlet subject = null, text = null;\nif (bad && !wasBad) {\n  subject = 'Yoga in the Stars site: PROBLEM';\n  text = `The health check just failed at ${st.lastChecked}.\\n\\nFailing:\\n- ${failing.join('\\n- ') || res.error || 'no detail'}\\n\\n${notes.length ? 'Notes:\\n- ' + notes.join('\\n- ') + '\\n\\n' : ''}Check https://yoga-in-the-stars.vercel.app/admin/health`;\n} else if (!bad && wasBad) {\n  subject = 'Yoga in the Stars site: recovered';\n  text = `All checks pass again as of ${st.lastChecked}.`;\n}\nreturn subject ? [{ json: { subject, text } }] : [];"
+      },
+      "id": "code",
+      "name": "Changed state?",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "sam.allen101@gmail.com",
+        "subject": "={{ $json.subject }}",
+        "emailType": "text",
+        "message": "={{ $json.text }}",
+        "options": {}
+      },
+      "id": "gmail",
+      "name": "Email Sam",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        720,
+        0
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "JUcRN0VawbhMTeUq",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Every 5 minutes": {
+      "main": [
+        [
+          {
+            "node": "GET /api/health",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET /api/health": {
+      "main": [
+        [
+          {
+            "node": "Changed state?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Changed state?": {
+      "main": [
+        [
+          {
+            "node": "Email Sam",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

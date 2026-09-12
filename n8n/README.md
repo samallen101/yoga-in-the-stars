@@ -63,3 +63,7 @@ Why templates: WhatsApp only allows a business to start a conversation with an a
 ### Testing without Meta
 
 Before the number is verified, point the site at this workflow anyway and put a **Set** node in place of **Send WhatsApp template** to see what would be sent. Every event is also visible in Admin → Dashboard (What's been happening).
+
+## 3. `uptime-monitor.json` — every 5 minutes
+
+Calls `GET /api/health` on the site. When the result changes from fine to a problem it emails Sam once with which check failed; when it recovers it emails once more. Uses the "Gmail account" credential already in n8n. Admin → Health on the site shows the same checks live.

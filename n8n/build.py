@@ -165,3 +165,56 @@ with open(os.path.join(HERE, "outbox-tick.json"), "w") as f:
 with open(os.path.join(HERE, "events-to-whatsapp.json"), "w") as f:
     json.dump(events, f, indent=2)
 print("wrote n8n/outbox-tick.json and n8n/events-to-whatsapp.json")
+
+# ---------------------------------------------------------------------------
+# 3. Uptime monitor: every 5 minutes GET /api/health; email Sam when it turns
+#    bad, and once more when it recovers (state kept in workflow static data).
+# ---------------------------------------------------------------------------
+MONITOR_CODE = r"""
+const res = $input.first().json;
+const status = res.status || 'unknown';
+const bad = status === 'problem' || status === 'down';
+const st = $getWorkflowStaticData('global');
+const wasBad = !!st.bad;
+st.bad = bad;
+st.lastChecked = new Date().toISOString();
+if (bad) st.badSince = st.badSince || st.lastChecked; else st.badSince = null;
+const failing = (res.checks || []).filter(c => !c.ok).map(c => `${c.name}: ${c.detail}`);
+const notes = (res.checks || []).filter(c => c.ok && c.warn).map(c => `${c.name}: ${c.detail}`);
+let subject = null, text = null;
+if (bad && !wasBad) {
+  subject = 'Yoga in the Stars site: PROBLEM';
+  text = `The health check just failed at ${st.lastChecked}.\n\nFailing:\n- ${failing.join('\n- ') || res.error || 'no detail'}\n\n${notes.length ? 'Notes:\n- ' + notes.join('\n- ') + '\n\n' : ''}Check https://yoga-in-the-stars.vercel.app/admin/health`;
+} else if (!bad && wasBad) {
+  subject = 'Yoga in the Stars site: recovered';
+  text = `All checks pass again as of ${st.lastChecked}.`;
+}
+return subject ? [{ json: { subject, text } }] : [];
+"""
+
+monitor = {
+    "name": "YITS · Uptime monitor (every 5 min)",
+    "nodes": [
+        {"parameters": {"rule": {"interval": [{"field": "minutes", "minutesInterval": 5}]}}, "id": "sched", "name": "Every 5 minutes", "type": "n8n-nodes-base.scheduleTrigger", "typeVersion": 1.2, "position": [0, 0]},
+        {
+            "parameters": {"url": "https://yoga-in-the-stars.vercel.app/api/health", "options": {"timeout": 20000, "response": {"response": {"neverError": True, "responseFormat": "json"}}}},
+            "id": "http", "name": "GET /api/health", "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [240, 0],
+            "onError": "continueRegularOutput",
+        },
+        {"parameters": {"jsCode": MONITOR_CODE.strip()}, "id": "code", "name": "Changed state?", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [480, 0]},
+        {
+            "parameters": {"sendTo": "sam.allen101@gmail.com", "subject": "={{ $json.subject }}", "emailType": "text", "message": "={{ $json.text }}", "options": {}},
+            "id": "gmail", "name": "Email Sam", "type": "n8n-nodes-base.gmail", "typeVersion": 2.1, "position": [720, 0],
+            "credentials": {"gmailOAuth2": {"id": "JUcRN0VawbhMTeUq", "name": "Gmail account"}},
+        },
+    ],
+    "connections": {
+        "Every 5 minutes": {"main": [[{"node": "GET /api/health", "type": "main", "index": 0}]]},
+        "GET /api/health": {"main": [[{"node": "Changed state?", "type": "main", "index": 0}]]},
+        "Changed state?": {"main": [[{"node": "Email Sam", "type": "main", "index": 0}]]},
+    },
+    "settings": {"executionOrder": "v1"},
+}
+with open(os.path.join(HERE, "uptime-monitor.json"), "w") as f:
+    json.dump(monitor, f, indent=2)
+print("wrote n8n/uptime-monitor.json")
