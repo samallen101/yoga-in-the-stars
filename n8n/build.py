@@ -8,6 +8,7 @@ HERE = os.path.dirname(__file__)
 # 1. Outbox tick: every minute, ask the site to flush its outbox to this n8n.
 # ---------------------------------------------------------------------------
 tick = {
+    "id": "2MWWsl8OlGqVAu5x",
     "name": "YITS · Outbox tick (every minute)",
     "nodes": [
         {
@@ -113,6 +114,7 @@ return out.map((m) => ({ json: { ...m, to: String(m.to).replace(/[^0-9]/g, '') }
 """
 
 events = {
+    "id": "S6pNKdPZ5BxmEfmF",
     "name": "YITS · Events → WhatsApp",
     "nodes": [
         {
@@ -193,6 +195,7 @@ return subject ? [{ json: { subject, text } }] : [];
 """
 
 monitor = {
+    "id": "YITSuptime5min01",
     "name": "YITS · Uptime monitor (every 5 min)",
     "nodes": [
         {"parameters": {"rule": {"interval": [{"field": "minutes", "minutesInterval": 5}]}}, "id": "sched", "name": "Every 5 minutes", "type": "n8n-nodes-base.scheduleTrigger", "typeVersion": 1.2, "position": [0, 0]},
