@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/server";
 import { fmtDate, fmtDateTime, gbp } from "@/lib/format";
 import { BackLink, FlagPill, Notice, StatusPill } from "@/components/ui";
-import { saveNotes, setRole, grantClassPass, grantMembership } from "./actions";
+import { saveNotes, setRole, grantClassPass, grantMembership, adjustPass, adjustMembership, staffCancelBooking, compBooking, recordPayment } from "./actions";
 
 export default async function PersonPage({ params, searchParams }: PageProps<"/admin/people/[id]">) {
   const { id } = await params;
@@ -18,6 +18,10 @@ export default async function PersonPage({ params, searchParams }: PageProps<"/a
     db.from("orders").select("*").eq("user_id", id).order("created_at", { ascending: false }).limit(20),
     db.from("membership_plans").select("id, name").eq("active", true),
     db.from("class_pass_products").select("id, name, credits").eq("active", true),
+  ]);
+  const [{ data: momoOrders }, { data: upcoming }] = await Promise.all([
+    db.from("momo_orders").select("invoice_date, pricing_option, price, paid, payment_method, credits, start_date, expiry_date").eq("user_id", id).order("invoice_date", { ascending: false }).limit(30),
+    db.from("class_sessions").select("id, starts_at, class_types(name)").eq("status", "scheduled").gte("starts_at", new Date().toISOString()).order("starts_at").limit(30),
   ]);
   if (!p) notFound();
   const msg = typeof sp.msg === "string" ? sp.msg : null;
@@ -51,9 +55,20 @@ export default async function PersonPage({ params, searchParams }: PageProps<"/a
           {(memberships ?? []).length === 0 ? <p className="text-sm text-ink-soft">None yet.</p> : (
             <ul className="divide-y divide-line text-sm">
               {memberships!.map((m) => (
-                <li key={m.id} className="py-2 flex justify-between">
-                  <span>{m.membership_plans?.name} <span className="text-ink-soft">· since {fmtDate(m.started_at, "d MMM yy")}</span></span>
-                  <StatusPill status={m.status} />
+                <li key={m.id} className="py-2 space-y-1">
+                  <div className="flex justify-between">
+                    <span>{m.membership_plans?.name} <span className="text-ink-soft">· since {fmtDate(m.started_at, "d MMM yy")}{m.current_period_end ? ` · until ${fmtDate(m.current_period_end, "d MMM yy")}` : ""}</span></span>
+                    <StatusPill status={m.status} />
+                  </div>
+                  {m.status !== "cancelled" && (
+                    <form action={adjustMembership} className="flex flex-wrap items-center gap-2 text-xs">
+                      <input type="hidden" name="user_id" value={id} /><input type="hidden" name="membership_id" value={m.id} />
+                      <span className="text-ink-soft">Fix:</span>
+                      <input name="days" type="number" defaultValue={30} className="input w-20 py-1" aria-label="days" />
+                      <button name="action" value="extend" className="btn-ghost py-1">Extend by days</button>
+                      <button name="action" value="end" className="btn-ghost py-1 text-red">End now</button>
+                    </form>
+                  )}
                 </li>
               ))}
             </ul>
@@ -77,9 +92,19 @@ export default async function PersonPage({ params, searchParams }: PageProps<"/a
           {(passes ?? []).length === 0 ? <p className="text-sm text-ink-soft">None yet.</p> : (
             <ul className="divide-y divide-line text-sm">
               {passes!.map((c) => (
-                <li key={c.id} className="py-2 flex justify-between">
-                  <span>{c.class_pass_products?.name ?? "Pass"}</span>
-                  <span className="text-ink-soft">{c.credits_remaining}/{c.credits_total} · exp {fmtDate(c.expires_at, "d MMM yy")}</span>
+                <li key={c.id} className="py-2 space-y-1">
+                  <div className="flex justify-between">
+                    <span>{c.class_pass_products?.name ?? "Pass"}</span>
+                    <span className="text-ink-soft">{c.credits_remaining}/{c.credits_total} · exp {fmtDate(c.expires_at, "d MMM yy")}</span>
+                  </div>
+                  <form action={adjustPass} className="flex flex-wrap items-center gap-2 text-xs">
+                    <input type="hidden" name="user_id" value={id} /><input type="hidden" name="pass_id" value={c.id} />
+                    <span className="text-ink-soft">Fix:</span>
+                    <input name="delta" type="number" defaultValue={1} className="input w-16 py-1" aria-label="credits to add (negative to remove)" />
+                    <span className="text-ink-soft">credits</span>
+                    <input name="expires_at" type="date" className="input py-1" aria-label="new expiry" />
+                    <button className="btn-ghost py-1">Apply</button>
+                  </form>
                 </li>
               ))}
             </ul>
@@ -100,12 +125,25 @@ export default async function PersonPage({ params, searchParams }: PageProps<"/a
             <ul className="divide-y divide-line text-sm">
               {bookings!.map((b) => (
                 <li key={b.id} className="py-2 flex justify-between gap-2">
-                  <span>{b.class_sessions?.class_types.name} <span className="text-ink-soft">· {b.class_sessions ? fmtDateTime(b.class_sessions.starts_at) : ""}</span></span>
-                  <StatusPill status={b.status} />
+                  <span>{b.class_sessions?.class_types.name} <span className="text-ink-soft">· {b.class_sessions ? fmtDateTime(b.class_sessions.starts_at) : ""} · {b.paid_with}</span></span>
+                  <span className="flex items-center gap-2">
+                    <StatusPill status={b.status} />
+                    {(b.status === "booked" || b.status === "waitlisted") && b.class_sessions && new Date(b.class_sessions.starts_at) > new Date() && (
+                      <form action={staffCancelBooking}><input type="hidden" name="user_id" value={id} /><input type="hidden" name="booking_id" value={b.id} /><button className="btn-ghost py-0.5 text-xs">Cancel</button></form>
+                    )}
+                  </span>
                 </li>
               ))}
             </ul>
           )}
+          <form action={compBooking} className="mt-4 flex flex-wrap gap-2 items-end border-t border-line pt-3">
+            <input type="hidden" name="user_id" value={id} />
+            <div className="flex-1 min-w-[12rem]">
+              <label className="label">Book them on a class for free (comp)</label>
+              <select name="session_id" className="input">{(upcoming ?? []).map((s) => <option key={s.id} value={s.id}>{fmtDateTime(s.starts_at)} · {s.class_types.name}</option>)}</select>
+            </div>
+            <button className="btn-secondary">Book</button>
+          </form>
         </section>
 
         <section className="card">
@@ -120,8 +158,49 @@ export default async function PersonPage({ params, searchParams }: PageProps<"/a
               ))}
             </ul>
           )}
+          <form action={recordPayment} className="mt-4 flex flex-wrap gap-2 items-end border-t border-line pt-3">
+            <input type="hidden" name="user_id" value={id} />
+            <div><label className="label">Record cash / bank payment</label><input name="amount" type="number" step="0.01" min="0" placeholder="£" className="input w-24" /></div>
+            <div className="flex-1 min-w-[10rem]"><label className="label">For</label><input name="description" className="input" placeholder="e.g. 3 Class Pass, paid at the desk" /></div>
+            <div><label className="label">Method</label><select name="method" className="input"><option value="cash">Cash</option><option value="bank transfer">Bank transfer</option><option value="other">Other</option></select></div>
+            <button className="btn-secondary">Record</button>
+          </form>
         </section>
       </div>
+
+      {(p.momo_id || (momoOrders ?? []).length > 0) && (
+        <section className="card">
+          <h2 className="font-semibold text-brand mb-1">History from Momo</h2>
+          <p className="text-xs text-ink-soft mb-3">
+            {p.momo_registered_at ? `Registered on Momo ${fmtDate(p.momo_registered_at, "d MMM yyyy")}` : "No Momo registration date"}
+            {p.momo_last_class_at ? ` · last class on Momo ${fmtDate(p.momo_last_class_at, "d MMM yyyy")}` : " · never attended on Momo"}
+            {p.momo_status ? ` · Momo status: ${p.momo_status}` : ""}
+            {p.momo_orders_summary ? ` · Momo listed: ${p.momo_orders_summary}` : ""}
+            {p.date_of_birth ? ` · born ${fmtDate(p.date_of_birth, "d MMM yyyy")}` : ""}
+            {p.city || p.postal_code ? ` · ${[p.address_line, p.postal_code, p.city].filter(Boolean).join(", ")}` : ""}
+          </p>
+          {(momoOrders ?? []).length === 0 ? <p className="text-sm text-ink-soft">No Momo orders.</p> : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead><tr className="text-left text-xs uppercase tracking-wide text-ink-soft"><th className="py-1 pr-4">Date</th><th className="py-1 pr-4">What</th><th className="py-1 pr-4">Price</th><th className="py-1 pr-4">Paid</th><th className="py-1 pr-4">Method</th><th className="py-1 pr-4">Valid</th><th className="py-1">Credits left</th></tr></thead>
+                <tbody>
+                  {momoOrders!.map((o, i) => (
+                    <tr key={i} className="border-t border-line">
+                      <td className="py-1 pr-4 whitespace-nowrap">{o.invoice_date ? fmtDate(o.invoice_date, "d MMM yy") : ""}</td>
+                      <td className="py-1 pr-4">{o.pricing_option}</td>
+                      <td className="py-1 pr-4">{o.price != null ? `£${Number(o.price).toFixed(2)}` : ""}</td>
+                      <td className="py-1 pr-4">{o.paid ? "yes" : <span className="text-red">no</span>}</td>
+                      <td className="py-1 pr-4">{o.payment_method ?? ""}</td>
+                      <td className="py-1 pr-4 whitespace-nowrap">{o.start_date ? fmtDate(o.start_date, "d MMM yy") : ""}{o.expiry_date ? ` to ${fmtDate(o.expiry_date, "d MMM yy")}` : ""}</td>
+                      <td className="py-1">{o.credits ?? ""}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <form action={saveNotes} className="card space-y-2">
