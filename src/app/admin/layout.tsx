@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/supabase/server";
 const links = [
   { href: "/admin", label: "Dashboard" },
   { href: "/admin/people", label: "People" },
+  { href: "/admin/insights", label: "Insights" },
   { href: "/admin/schedule", label: "Schedule" },
   { href: "/admin/plans", label: "Plans & passes" },
   { href: "/admin/events", label: "Events" },

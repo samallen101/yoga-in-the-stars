@@ -461,6 +461,104 @@ export type Database = {
           { foreignKeyName: "memberships_plan_id_fkey"; columns: ["plan_id"]; isOneToOne: false; referencedRelation: "membership_plans"; referencedColumns: ["id"] },
         ]
       }
+      momo_orders: {
+        Row: {
+          id: number
+          user_id: string | null
+          invoice_date: string | null
+          first_name: string | null
+          last_name: string | null
+          email: string | null
+          pricing_option: string | null
+          currency: string | null
+          price: number | null
+          tax_percent: number | null
+          tax: number | null
+          price_ex_tax: number | null
+          promo_code: string | null
+          discount_value: number | null
+          price_for_yogi: number | null
+          fee: number | null
+          ex_fee: number | null
+          paid: boolean | null
+          payment_date: string | null
+          payment_method: string | null
+          payment_id: string | null
+          credits: number | null
+          start_date: string | null
+          expiry_date: string | null
+          invoice_number: string | null
+          reminded: number | null
+          payout_date: string | null
+          raw: Json
+          imported_at: string
+        }
+        Insert: {
+          id?: number
+          user_id?: string | null
+          invoice_date?: string | null
+          first_name?: string | null
+          last_name?: string | null
+          email?: string | null
+          pricing_option?: string | null
+          currency?: string | null
+          price?: number | null
+          tax_percent?: number | null
+          tax?: number | null
+          price_ex_tax?: number | null
+          promo_code?: string | null
+          discount_value?: number | null
+          price_for_yogi?: number | null
+          fee?: number | null
+          ex_fee?: number | null
+          paid?: boolean | null
+          payment_date?: string | null
+          payment_method?: string | null
+          payment_id?: string | null
+          credits?: number | null
+          start_date?: string | null
+          expiry_date?: string | null
+          invoice_number?: string | null
+          reminded?: number | null
+          payout_date?: string | null
+          raw: Json
+          imported_at?: string
+        }
+        Update: {
+          id?: number
+          user_id?: string | null
+          invoice_date?: string | null
+          first_name?: string | null
+          last_name?: string | null
+          email?: string | null
+          pricing_option?: string | null
+          currency?: string | null
+          price?: number | null
+          tax_percent?: number | null
+          tax?: number | null
+          price_ex_tax?: number | null
+          promo_code?: string | null
+          discount_value?: number | null
+          price_for_yogi?: number | null
+          fee?: number | null
+          ex_fee?: number | null
+          paid?: boolean | null
+          payment_date?: string | null
+          payment_method?: string | null
+          payment_id?: string | null
+          credits?: number | null
+          start_date?: string | null
+          expiry_date?: string | null
+          invoice_number?: string | null
+          reminded?: number | null
+          payout_date?: string | null
+          raw?: Json
+          imported_at?: string
+        }
+        Relationships: [
+          { foreignKeyName: "momo_orders_user_id_fkey"; columns: ["user_id"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
+        ]
+      }
       orders: {
         Row: {
           id: string
@@ -588,6 +686,17 @@ export type Database = {
           notes: string | null
           created_at: string
           updated_at: string
+          source: string
+          date_of_birth: string | null
+          gender: string | null
+          address_line: string | null
+          postal_code: string | null
+          city: string | null
+          momo_id: number | null
+          momo_registered_at: string | null
+          momo_status: string | null
+          momo_last_class_at: string | null
+          momo_orders_summary: string | null
         }
         Insert: {
           id: string
@@ -601,6 +710,17 @@ export type Database = {
           notes?: string | null
           created_at?: string
           updated_at?: string
+          source?: string
+          date_of_birth?: string | null
+          gender?: string | null
+          address_line?: string | null
+          postal_code?: string | null
+          city?: string | null
+          momo_id?: number | null
+          momo_registered_at?: string | null
+          momo_status?: string | null
+          momo_last_class_at?: string | null
+          momo_orders_summary?: string | null
         }
         Update: {
           id?: string
@@ -614,6 +734,17 @@ export type Database = {
           notes?: string | null
           created_at?: string
           updated_at?: string
+          source?: string
+          date_of_birth?: string | null
+          gender?: string | null
+          address_line?: string | null
+          postal_code?: string | null
+          city?: string | null
+          momo_id?: number | null
+          momo_registered_at?: string | null
+          momo_status?: string | null
+          momo_last_class_at?: string | null
+          momo_orders_summary?: string | null
         }
         Relationships: []
       }
@@ -714,6 +845,7 @@ export type Database = {
       is_admin: { Args: Record<string, never>; Returns: boolean }
       is_active_member: { Args: { uid: string }; Returns: boolean }
       emit_event: { Args: { p_type: string; p_user_id: string; p_payload: Json }; Returns: string }
+      momo_insights_data: { Args: Record<string, never>; Returns: Json }
     }
     Enums: {
       booking_status: "booked" | "waitlisted" | "cancelled" | "attended" | "no_show"
