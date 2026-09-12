@@ -9,8 +9,8 @@ current memberships and class passes. Everything is kept; nothing is deleted.
 Usage (from the repo folder, .env.local present):
   python3 scripts/momo-import.py --members <Members.csv> --orders <Orders.csv> --out <reports folder> [--dry-run]
 
-Safe to re-run: people are matched by email (and momo_id), orders by invoice
-number, memberships/passes are only created if none exist for that person yet.
+Safe to re-run: people are matched by email (and momo_id), orders by
+(invoice number, email, date, option, price), memberships/passes are only created if none exist for that person yet.
 """
 import argparse, csv, json, os, re, sys, time, datetime as dt, collections
 import urllib.request, urllib.parse, urllib.error
@@ -217,7 +217,7 @@ def main():
     while True:
         st, have = sb.get(f"/rest/v1/momo_orders?select=invoice_number,email,invoice_date,pricing_option,price&offset={off}&limit=1000")
         if not have: break
-        for r in have: have_keys.add((r.get("invoice_number") or "", (r.get("email") or "").lower(), r.get("invoice_date") or "", r.get("pricing_option") or "", str(r.get("price") if r.get("price") is not None else "")))
+        for r in have: have_keys.add((r.get("invoice_number") or "", (r.get("email") or "").lower(), r.get("invoice_date") or "", r.get("pricing_option") or "", (f"{float(r['price']):.2f}" if r.get("price") is not None else "")))
         if len(have) < 1000: break
         off += 1000
     def okey(o):
