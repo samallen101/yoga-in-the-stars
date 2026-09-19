@@ -1,0 +1,233 @@
+{
+  "_readme": "Message templates for the club's WhatsApp number, in the shape Meta's Graph API expects (POST /{WABA_ID}/message_templates). Same wording as docs/08-whatsapp-templates.md. Language en_GB throughout. Bodies never start or end with a variable and every variable has an example, because Meta rejects templates that break either rule.",
+  "language": "en_GB",
+  "templates": [
+    {
+      "name": "yits_team_alert",
+      "category": "UTILITY",
+      "language": "en_GB",
+      "components": [
+        {
+          "type": "BODY",
+          "text": "Club alert: {{1}}. Open the admin dashboard for details.",
+          "example": {
+            "body_text": [
+              [
+                "New member: Priya (Standard)"
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "yits_welcome",
+      "category": "UTILITY",
+      "language": "en_GB",
+      "components": [
+        {
+          "type": "BODY",
+          "text": "Hi {{1}}, welcome to Yoga in the Stars. Your {{2}} is active and every regular session is now included. Join the members' WhatsApp community here: {{3}}. Reply here any time.",
+          "example": {
+            "body_text": [
+              [
+                "Priya",
+                "Standard membership",
+                "https://chat.whatsapp.com/example"
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "yits_reminder",
+      "category": "UTILITY",
+      "language": "en_GB",
+      "components": [
+        {
+          "type": "BODY",
+          "text": "Hi {{1}}, a reminder that you're booked on {{2}} tomorrow at {{3}}. Can't make it? Cancel in My club so someone on the waitlist can come.",
+          "example": {
+            "body_text": [
+              [
+                "Priya",
+                "Vinyasa Flow",
+                "7:00pm"
+              ]
+            ]
+          }
+        },
+        {
+          "type": "BUTTONS",
+          "buttons": [
+            {
+              "type": "URL",
+              "text": "My club",
+              "url": "https://yoga-in-the-stars.vercel.app/me"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "yits_promoted",
+      "category": "UTILITY",
+      "language": "en_GB",
+      "components": [
+        {
+          "type": "BODY",
+          "text": "Hi {{1}}, a space opened up: you're now booked on {{2}} on {{3}}. If you can't make it any more, please cancel in My club.",
+          "example": {
+            "body_text": [
+              [
+                "Priya",
+                "Vinyasa Flow",
+                "Tue 23 Sep, 7:00pm"
+              ]
+            ]
+          }
+        },
+        {
+          "type": "BUTTONS",
+          "buttons": [
+            {
+              "type": "URL",
+              "text": "My club",
+              "url": "https://yoga-in-the-stars.vercel.app/me"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "yits_cancelled",
+      "category": "UTILITY",
+      "language": "en_GB",
+      "components": [
+        {
+          "type": "BODY",
+          "text": "Hi {{1}}, sorry, {{2}} on {{3}} has been cancelled. {{4}} Any class pass credit is back on your pass; if you paid for a drop-in we'll sort a refund. See the schedule for other classes this week.",
+          "example": {
+            "body_text": [
+              [
+                "Priya",
+                "Vinyasa Flow",
+                "Tue 23 Sep, 7:00pm",
+                "The pub needs the room for a private event."
+              ]
+            ]
+          }
+        },
+        {
+          "type": "BUTTONS",
+          "buttons": [
+            {
+              "type": "URL",
+              "text": "Schedule",
+              "url": "https://yoga-in-the-stars.vercel.app/schedule"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "yits_checkin",
+      "category": "MARKETING",
+      "language": "en_GB",
+      "components": [
+        {
+          "type": "BODY",
+          "text": "Hi {{1}}, we haven't seen you at the club for a couple of weeks. Everything ok? Reply here if you'd like a hand getting back into it, or just come along, there's always a mat for you. Reply STOP if you'd rather not get these.",
+          "example": {
+            "body_text": [
+              [
+                "Priya"
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "yits_pass_expiring",
+      "category": "UTILITY",
+      "language": "en_GB",
+      "components": [
+        {
+          "type": "BODY",
+          "text": "Hi {{1}}, you still have {{2}} classes on your pass and it expires on {{3}}. Book them in from the schedule.",
+          "example": {
+            "body_text": [
+              [
+                "Priya",
+                "2",
+                "Sun 5 Oct"
+              ]
+            ]
+          }
+        },
+        {
+          "type": "BUTTONS",
+          "buttons": [
+            {
+              "type": "URL",
+              "text": "Schedule",
+              "url": "https://yoga-in-the-stars.vercel.app/schedule"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "yits_membership_move",
+      "category": "UTILITY",
+      "language": "en_GB",
+      "components": [
+        {
+          "type": "BODY",
+          "text": "Hi {{1}}, bookings have a new home and your {{2}} came with us. You're paid up until {{3}}; after that the old system won't renew it. To carry on without a gap, set up your card on the new site. Nothing is charged before {{4}}. Reply here with any questions.",
+          "example": {
+            "body_text": [
+              [
+                "Priya",
+                "Standard membership",
+                "12 October",
+                "12 October"
+              ]
+            ]
+          }
+        },
+        {
+          "type": "BUTTONS",
+          "buttons": [
+            {
+              "type": "URL",
+              "text": "Set up my card",
+              "url": "https://yoga-in-the-stars.vercel.app/me"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "yits_broadcast",
+      "category": "MARKETING",
+      "language": "en_GB",
+      "components": [
+        {
+          "type": "BODY",
+          "text": "Hi {{1}}, a note from Yoga in the Stars: {{2}} Reply STOP if you'd rather not get these.",
+          "example": {
+            "body_text": [
+              [
+                "Priya",
+                "Full Moon Ritual this Friday at 7:30pm, members £12. Book from the schedule."
+              ]
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

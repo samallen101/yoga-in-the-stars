@@ -53,7 +53,7 @@ export async function sendBroadcast(formData: FormData) {
   } else {
     // n8n does the sending from the club WhatsApp number; one event per person keeps retries simple.
     for (const r of recipients) {
-      await emit("broadcast.whatsapp", r.id, { phone: r.phone, message: personalise(body, r), audience });
+      await emit("broadcast.whatsapp", r.id, { phone: r.phone, full_name: r.full_name, message: personalise(body, r), audience });
     }
   }
 

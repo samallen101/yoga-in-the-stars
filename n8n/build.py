@@ -51,6 +51,7 @@ const when = (iso) => {
   const d = new Date(iso);
   return d.toLocaleString('en-GB', { timeZone: 'Europe/London', weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 };
+const dateOnly = (iso) => iso ? new Date(iso).toLocaleDateString('en-GB', { timeZone: 'Europe/London', day: 'numeric', month: 'long' }) : 'the end of your current period';
 const timeOnly = (iso) => new Date(iso).toLocaleTimeString('en-GB', { timeZone: 'Europe/London', hour: '2-digit', minute: '2-digit' });
 const canMessage = (p) => p && p.phone && p.whatsapp_opt_in;
 const teamAlert = (text) => { for (const to of club.team_numbers || []) out.push({ to, template: 'yits_team_alert', params: [text] }); };
@@ -85,7 +86,7 @@ switch (type) {
   case 'session.cancelled': {
     const affected = payload.affected || [];
     const messaged = affected.filter(canMessage);
-    for (const p of messaged) out.push({ to: p.phone, template: 'yits_cancelled', params: [first(p.full_name), payload.class_name, when(payload.starts_at), payload.reason || ''] });
+    for (const p of messaged) out.push({ to: p.phone, template: 'yits_cancelled', params: [first(p.full_name), payload.class_name, when(payload.starts_at), payload.reason || 'Apologies for the short notice.'] });
     teamAlert(`${payload.class_name} on ${when(payload.starts_at)} cancelled. ${affected.length} booked; ${messaged.length} sent a WhatsApp, the rest emailed.${(payload.paid_bookings || []).length ? ` ${payload.paid_bookings.length} paid drop-in(s) to refund.` : ''}`);
     break;
   }
@@ -97,11 +98,14 @@ switch (type) {
     break;
 
   case 'broadcast.whatsapp':
-    if (payload.phone) out.push({ to: payload.phone, template: 'yits_broadcast', params: [payload.message] });
+    if (payload.phone) out.push({ to: payload.phone, template: 'yits_broadcast', params: [first(payload.full_name), payload.message] });
     break;
 
   case 'class_pass.expiring':
     if (canMessage(user)) out.push({ to: user.phone, template: 'yits_pass_expiring', params: [first(user.full_name), String(payload.credits_remaining), when(payload.expires_at)] });
+    break;
+  case 'membership.transfer_needed':
+    if (canMessage(user)) out.push({ to: user.phone, template: 'yits_membership_move', params: [first(user.full_name), payload.plan || 'membership', dateOnly(payload.period_end), dateOnly(payload.period_end)] });
     break;
 
   default:

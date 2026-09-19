@@ -33,6 +33,7 @@ After import:
 | `engagement.flag_changed` to red | team | `yits_team_alert` |
 | `broadcast.whatsapp` (Admin → Broadcast) | each recipient | `yits_broadcast` |
 | `class_pass.expiring` | the pass holder | `yits_pass_expiring` |
+| `membership.transfer_needed` (imported Momo membership ending in 14 days) | the member | `yits_membership_move` |
 
 Members only get messages if they ticked WhatsApp opt-in and gave a mobile number. Team numbers come from Admin → Settings. Everything else (booking confirmations, receipts, cancellations of your own booking) goes by email from the site.
 
@@ -47,16 +48,7 @@ Who-gets-what and the placeholder values live in the **Build messages** node. Th
 
 ### Templates to create
 
-Category **Utility** unless noted. `{{1}}`, `{{2}}` are the placeholders the workflow fills, in order.
-
-- `yits_team_alert` · `Club alert: {{1}}`
-- `yits_welcome` · `Hi {{1}}, welcome to Yoga in the Stars. Your {{2}} is active and every regular session is now included. Join the members' WhatsApp community here: {{3}}. Reply here any time.`
-- `yits_reminder` · `Hi {{1}}, a reminder that you're booked on {{2}} tomorrow at {{3}}. Can't make it? Cancel in My club so someone on the waitlist can come.`
-- `yits_promoted` · `Hi {{1}}, a space opened up: you're now booked on {{2}} on {{3}}. If you can't make it any more, please cancel in My club.`
-- `yits_cancelled` · `Hi {{1}}, sorry, {{2}} on {{3}} has been cancelled. {{4}} Any class pass credit is back on your pass; if you paid for a drop-in we'll sort a refund.`
-- `yits_checkin` · `Hi {{1}}, we haven't seen you at the club for a couple of weeks. Everything ok? Reply here if you'd like a hand getting back into it, or just come along, there's always a mat for you.`
-- `yits_pass_expiring` · `Hi {{1}}, you still have {{2}} classes on your pass and it expires on {{3}}. Book them in from the schedule.`
-- `yits_broadcast` (category **Marketing**) · `{{1}}`
+The exact wording, categories, examples and buttons are in `n8n/whatsapp-templates.json` (Meta API shape) and, for pasting by hand, `docs/08-whatsapp-templates.md`. Nine templates: `yits_team_alert`, `yits_welcome`, `yits_reminder`, `yits_promoted`, `yits_cancelled`, `yits_checkin`, `yits_pass_expiring`, `yits_membership_move`, `yits_broadcast`. Once the WABA works they can be submitted in one go: `python3 n8n/submit-templates.py <WABA_ID>` with `META_TOKEN` in the environment.
 
 Why templates: WhatsApp only allows a business to start a conversation with an approved template. Once someone replies, you can chat freely for 24 hours. Meta charges per conversation started (utility is cheaper than marketing); at club scale this is a few pounds a month.
 
