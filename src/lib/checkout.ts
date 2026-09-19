@@ -59,11 +59,21 @@ export async function checkoutForSession(opts: {
   return cs.url!;
 }
 
-/** Recurring membership subscription. */
-export async function checkoutForPlan(profile: Tables<"profiles">, plan: Tables<"membership_plans">) {
+/** A membership imported from Momo that this checkout will take over from. */
+export type LegacyMembership = Pick<Tables<"memberships">, "id" | "current_period_end">;
+
+/**
+ * Recurring membership subscription. When `replaces` is an imported Momo
+ * membership that still has paid time left, the new subscription starts as a
+ * free trial until that date so nobody pays twice; Stripe needs the trial to
+ * end at least 48 hours out, so anything closer simply starts today.
+ */
+export async function checkoutForPlan(profile: Tables<"profiles">, plan: Tables<"membership_plans">, replaces?: LegacyMembership | null) {
   const db = createAdminClient();
   const customer = await ensureStripeCustomer(profile);
   const priceId = await ensurePlanPrice(plan);
+  const legacyEnd = replaces?.current_period_end ? new Date(replaces.current_period_end).getTime() : 0;
+  const trialEnd = legacyEnd > Date.now() + 49 * 3600_000 ? Math.floor(legacyEnd / 1000) : undefined;
 
   const { data: membership } = await db
     .from("memberships")
@@ -81,9 +91,12 @@ export async function checkoutForPlan(profile: Tables<"profiles">, plan: Tables<
     customer,
     line_items: [{ price: priceId, quantity: 1 }],
     allow_promotion_codes: true,
-    subscription_data: { metadata: { membership_id: membership!.id, plan_id: plan.id, user_id: profile.id } },
-    metadata: { order_id: order!.id, kind: "membership", membership_id: membership!.id, user_id: profile.id },
-    success_url: siteUrl(`/me?joined=1`),
+    subscription_data: {
+      metadata: { membership_id: membership!.id, plan_id: plan.id, user_id: profile.id, ...(replaces ? { replaces_membership_id: replaces.id } : {}) },
+      ...(trialEnd ? { trial_end: trialEnd } : {}),
+    },
+    metadata: { order_id: order!.id, kind: "membership", membership_id: membership!.id, user_id: profile.id, ...(replaces ? { replaces_membership_id: replaces.id } : {}) },
+    success_url: siteUrl(replaces ? `/me?moved=1` : `/me?joined=1`),
     cancel_url: siteUrl(`/membership`),
   });
   await db.from("orders").update({ stripe_checkout_session_id: cs.id }).eq("id", order!.id);

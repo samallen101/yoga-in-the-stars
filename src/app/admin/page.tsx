@@ -2,11 +2,22 @@ import Link from "next/link";
 import { getDashboard } from "@/lib/admin";
 import { fmtDate, fmtDateTime, gbp } from "@/lib/format";
 import { PageHeader, Stat, FlagPill } from "@/components/ui";
+import { createAdminClient } from "@/lib/supabase/server";
 
 export const metadata = { title: "Admin" };
 
 export default async function AdminDashboard() {
   const d = await getDashboard();
+  // Memberships that came over from Momo and have nothing renewing them.
+  const { data: legacyRows } = await createAdminClient()
+    .from("memberships")
+    .select("id, user_id, current_period_end, transfer_nudged_at, membership_plans(name, price_pence), profiles(full_name)")
+    .eq("source", "momo").eq("status", "active").is("stripe_subscription_id", null).is("replaced_by", null)
+    .lte("current_period_end", new Date(Date.now() + 30 * 86400_000).toISOString())
+    .order("current_period_end").limit(60);
+  const legacy = (legacyRows ?? []).map((m) => ({ ...m, plan: m.membership_plans as unknown as { name: string; price_pence: number }, person: m.profiles as unknown as { full_name: string | null } }));
+  const legacyPaid = legacy.filter((m) => m.plan.price_pence > 0);
+  const legacyFree = legacy.filter((m) => m.plan.price_pence <= 0);
   return (
     <div className="space-y-8">
       <PageHeader title="Dashboard" intro="The numbers Momo never gave you." />
@@ -17,6 +28,33 @@ export default async function AdminDashboard() {
         <Stat label="Attendances (30 days)" value={d.attendance30} hint="Booked or checked in" />
         <Stat label="Taken (30 days)" value={gbp(d.revenue30)} hint="Via Stripe, all products" />
       </div>
+
+      {legacy.length > 0 && (
+        <section className="card">
+          <div className="flex items-baseline justify-between gap-3 flex-wrap">
+            <h2 className="font-semibold text-brand">Momo memberships ending in the next 30 days</h2>
+            <span className="text-sm text-ink-soft">{legacyPaid.length} paid · {legacyFree.length} free</span>
+          </div>
+          <p className="text-sm text-ink-soft mt-1">
+            These came over from Momo and nothing renews them here. Paid ones get an email 14 days before the end asking them to set up a card on the site (their paid time is honoured, nothing is charged early). Free ones (teachers, home members, partners) are yours to extend from their page.
+          </p>
+          <div className="mt-3 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-left text-ink-soft"><tr><th className="py-1 pr-3">Person</th><th className="py-1 pr-3">Plan</th><th className="py-1 pr-3">Ends</th><th className="py-1 pr-3">Nudged</th></tr></thead>
+              <tbody>
+                {legacy.map((m) => (
+                  <tr key={m.id} className="border-t border-ink/10">
+                    <td className="py-1.5 pr-3"><Link href={`/admin/people/${m.user_id}`} className="underline">{m.person?.full_name ?? "Unnamed"}</Link></td>
+                    <td className="py-1.5 pr-3">{m.plan.name}{m.plan.price_pence > 0 ? ` (${gbp(m.plan.price_pence)})` : " (free)"}</td>
+                    <td className="py-1.5 pr-3 whitespace-nowrap">{m.current_period_end ? fmtDate(m.current_period_end, "d MMM") : "?"}</td>
+                    <td className="py-1.5 pr-3 text-ink-soft">{m.plan.price_pence > 0 ? (m.transfer_nudged_at ? fmtDate(m.transfer_nudged_at, "d MMM") : "not yet") : "team renews"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="card">

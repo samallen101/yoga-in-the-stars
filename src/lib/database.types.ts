@@ -425,6 +425,9 @@ export type Database = {
           ended_at: string | null
           created_at: string
           updated_at: string
+          source: string
+          replaced_by: string | null
+          transfer_nudged_at: string | null
         }
         Insert: {
           id?: string
@@ -440,6 +443,9 @@ export type Database = {
           ended_at?: string | null
           created_at?: string
           updated_at?: string
+          source?: string
+          replaced_by?: string | null
+          transfer_nudged_at?: string | null
         }
         Update: {
           id?: string
@@ -455,10 +461,14 @@ export type Database = {
           ended_at?: string | null
           created_at?: string
           updated_at?: string
+          source?: string
+          replaced_by?: string | null
+          transfer_nudged_at?: string | null
         }
         Relationships: [
           { foreignKeyName: "memberships_user_id_fkey"; columns: ["user_id"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
           { foreignKeyName: "memberships_plan_id_fkey"; columns: ["plan_id"]; isOneToOne: false; referencedRelation: "membership_plans"; referencedColumns: ["id"] },
+          { foreignKeyName: "memberships_replaced_by_fkey"; columns: ["replaced_by"]; isOneToOne: false; referencedRelation: "memberships"; referencedColumns: ["id"] },
         ]
       }
       momo_orders: {

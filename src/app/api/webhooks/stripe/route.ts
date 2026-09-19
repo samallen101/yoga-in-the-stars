@@ -169,7 +169,20 @@ async function syncSubscription(sub: Stripe.Subscription, fromCheckout = false) 
     .eq("id", membership.id);
 
   const planName = (membership.membership_plans as { name: string }).name;
+
+  // Taking over from an imported Momo membership: retire the old row so the
+  // person has one membership, and remember which one replaced it.
+  const legacyId = sub.metadata?.replaces_membership_id;
+  if (legacyId && (status === "active" || status === "paused" || status === "past_due")) {
+    const { data: legacy } = await db.from("memberships").select("id, replaced_by").eq("id", legacyId).eq("user_id", membership.user_id).maybeSingle();
+    if (legacy && !legacy.replaced_by) {
+      await db.from("memberships").update({ status: "cancelled", ended_at: new Date().toISOString(), replaced_by: membership.id }).eq("id", legacyId);
+      await emit("membership.moved", membership.user_id, { plan: planName, membership_id: membership.id, legacy_membership_id: legacyId, starts_billing: period.end, trial: sub.status === "trialing" });
+    }
+  }
+
   if (prev !== "active" && status === "active" && (fromCheckout || prev === "incomplete")) {
+    if (legacyId) return; // "membership.moved" already said it
     await emit("membership.purchased", membership.user_id, { plan: planName, membership_id: membership.id, period_end: period.end });
   } else if (prev !== "paused" && status === "paused") {
     await emit("membership.paused", membership.user_id, { plan: planName, resumes_at: resumesAt });

@@ -3,6 +3,8 @@ import { createAdminClient, getCurrentUser } from "@/lib/supabase/server";
 import { gbp } from "@/lib/format";
 import { PageHeader, Notice } from "@/components/ui";
 import { startPlanCheckout, startPassCheckout } from "./actions";
+import { legacyMembershipOf } from "@/lib/membership";
+import { fmtDate } from "@/lib/format";
 
 export const metadata = { title: "Membership" };
 
@@ -16,9 +18,17 @@ export default async function MembershipPage({ searchParams }: PageProps<"/membe
   ]);
 
   let isMember = false;
+  let moving: { plan: string; end: string | null; stillPaid: boolean } | null = null;
   if (me) {
-    const { data } = await db.rpc("is_active_member", { uid: me.user.id });
-    isMember = Boolean(data);
+    const legacy = await legacyMembershipOf(me.user.id);
+    const lp = legacy?.membership_plans as { name: string; price_pence: number } | null | undefined;
+    if (legacy && lp && lp.price_pence > 0) {
+      // Imported from Momo with nothing renewing it: let them pick a plan to move over.
+      moving = { plan: lp.name, end: legacy.current_period_end, stillPaid: !!legacy.current_period_end && new Date(legacy.current_period_end).getTime() > Date.now() + 49 * 3600_000 };
+    } else {
+      const { data } = await db.rpc("is_active_member", { uid: me.user.id });
+      isMember = Boolean(data);
+    }
   }
   const msg = typeof sp.msg === "string" ? sp.msg : null;
 
@@ -29,6 +39,11 @@ export default async function MembershipPage({ searchParams }: PageProps<"/membe
         intro="Members keep the space alive. In return, every regular class is included and you get member prices on gigs, breathwork and retreats."
       />
       {msg && <Notice kind="error">{msg}</Notice>}
+      {moving && (
+        <Notice kind="success">
+          Your {moving.plan} came over from the old booking system{moving.end && moving.stillPaid ? ` and is paid up until ${fmtDate(moving.end, "d MMMM")}` : ""}. Choose a plan below to keep it going{moving.stillPaid ? ": nothing is charged until then" : ""}.
+        </Notice>
+      )}
       {isMember && <Notice kind="success">You're a member. Thank you for keeping the club going. Manage your membership in <Link href="/me" className="underline">My club</Link>.</Notice>}
 
       <section>
@@ -48,7 +63,7 @@ export default async function MembershipPage({ searchParams }: PageProps<"/membe
                 <li>· Pause or cancel any time</li>
               </ul>
               {me ? (
-                <button className="btn-primary mt-5" disabled={isMember}>{isMember ? "You're a member" : "Join"}</button>
+                <button className="btn-primary mt-5" disabled={isMember}>{isMember ? "You're a member" : moving ? "Move my membership here" : "Join"}</button>
               ) : (
                 <Link href="/register?next=/membership" className="btn-primary mt-5">Create an account to join</Link>
               )}

@@ -6,6 +6,8 @@ import { PageHeader, Notice, StatusPill, Empty } from "@/components/ui";
 import { openBillingPortal } from "@/app/membership/actions";
 import { cancelMyBooking } from "@/app/classes/[id]/actions";
 import { updateProfile } from "./actions";
+import { legacyMembershipOf } from "@/lib/membership";
+import { MoveMembershipCard } from "./move-membership";
 
 export const metadata = { title: "My club" };
 
@@ -15,13 +17,19 @@ export default async function MePage({ searchParams }: PageProps<"/me">) {
   const sp = await searchParams;
   const db = createAdminClient();
 
-  const [{ data: membership }, { data: passes }, { data: upcoming }, { data: past }, { data: settings }] = await Promise.all([
+  const [{ data: membership }, { data: passes }, { data: upcoming }, { data: past }, { data: settings }, legacy, { data: plans }] = await Promise.all([
     db.from("memberships").select("*, membership_plans(*)").eq("user_id", me.user.id).neq("status", "incomplete").order("created_at", { ascending: false }).limit(1).maybeSingle(),
     db.from("class_passes").select("*, class_pass_products(name)").eq("user_id", me.user.id).gt("credits_remaining", 0).gt("expires_at", new Date().toISOString()).order("expires_at"),
     db.from("bookings").select("*, class_sessions(*, class_types(name, colour), teacher:profiles!class_sessions_teacher_id_fkey(full_name))").eq("user_id", me.user.id).in("status", ["booked", "waitlisted"]).gte("class_sessions.starts_at", new Date().toISOString()).order("created_at"),
     db.from("bookings").select("id, status, class_sessions(starts_at, class_types(name))").eq("user_id", me.user.id).in("status", ["booked", "attended"]).lt("class_sessions.starts_at", new Date().toISOString()).limit(8),
     db.from("settings").select("whatsapp_community_url").eq("id", 1).single(),
+    legacyMembershipOf(me.user.id),
+    db.from("membership_plans").select("id, name, price_pence, interval").eq("active", true).order("sort_order"),
   ]);
+  // A paid Momo membership with nothing renewing it: offer the move. Free legacy
+  // plans (teachers, home members, partners) are the team's to renew by hand.
+  const legacyPlan = legacy?.membership_plans as { name: string; price_pence: number; active: boolean } | null | undefined;
+  const needsMove = Boolean(legacy && legacyPlan && legacyPlan.price_pence > 0);
 
   const upcomingList = (upcoming ?? []).filter((b) => b.class_sessions).sort((a, b) => a.class_sessions!.starts_at.localeCompare(b.class_sessions!.starts_at));
   const pastList = (past ?? []).filter((b) => b.class_sessions).sort((a, b) => b.class_sessions!.starts_at.localeCompare(a.class_sessions!.starts_at));
@@ -31,6 +39,10 @@ export default async function MePage({ searchParams }: PageProps<"/me">) {
       <PageHeader title={`Hi ${me.profile.full_name?.split(" ")[0] || "there"}`} intro="Your bookings, membership and details." />
 
       {sp.joined === "1" && <Notice kind="success">Welcome to the club. Your membership is active and every regular class is now included.</Notice>}
+      {sp.moved === "1" && <Notice kind="success">Thank you, your membership has moved over. Nothing changes for your classes, and your card is only charged when your current paid period ends.</Notice>}
+      {needsMove && legacy && legacyPlan && (
+        <MoveMembershipCard legacyPlan={legacyPlan.name} periodEnd={legacy.current_period_end} currentPlanId={legacyPlan.active ? legacy.plan_id : null} plans={plans ?? []} />
+      )}
       {sp.pass === "1" && <Notice kind="success">Your class pass is ready. Book a class from the schedule and it'll be used automatically.</Notice>}
       {sp.saved === "1" && <Notice kind="success">Details saved.</Notice>}
 
@@ -96,15 +108,22 @@ export default async function MePage({ searchParams }: PageProps<"/me">) {
                   <StatusPill status={membership.status} />
                 </div>
                 <div className="text-sm text-ink-soft mt-1">
-                  {membership.status === "active" && membership.current_period_end && `Renews ${fmtDate(membership.current_period_end, "d MMM yyyy")}`}
+                  {membership.status === "active" && membership.current_period_end && membership.source === "momo" && !membership.stripe_subscription_id && `Runs until ${fmtDate(membership.current_period_end, "d MMM yyyy")}`}
+                  {membership.status === "active" && membership.current_period_end && !(membership.source === "momo" && !membership.stripe_subscription_id) && `Renews ${fmtDate(membership.current_period_end, "d MMM yyyy")}`}
                   {membership.status === "paused" && membership.paused_until && `Paused until ${fmtDate(membership.paused_until, "d MMM yyyy")}`}
                   {membership.status === "past_due" && "Your last payment didn't go through. Update your card below."}
                   {membership.status === "cancelled" && "Cancelled. You're welcome back any time."}
                 </div>
-                <form action={openBillingPortal} className="mt-3">
-                  <button className="btn-secondary w-full">Manage membership</button>
-                </form>
-                <p className="text-xs text-ink-soft mt-2">Update your card, pause, or cancel. Secure page from Stripe.</p>
+                {membership.stripe_subscription_id ? (
+                  <>
+                    <form action={openBillingPortal} className="mt-3">
+                      <button className="btn-secondary w-full">Manage membership</button>
+                    </form>
+                    <p className="text-xs text-ink-soft mt-2">Update your card, pause, or cancel. Secure page from Stripe.</p>
+                  </>
+                ) : (
+                  <p className="text-xs text-ink-soft mt-2">{needsMove ? "Set up your card above to keep it going." : "Looked after by the team. Message us if anything needs changing."}</p>
+                )}
               </>
             ) : (
               <>

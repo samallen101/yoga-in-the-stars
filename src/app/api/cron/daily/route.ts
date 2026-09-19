@@ -81,8 +81,31 @@ export async function GET(req: NextRequest) {
     expiryWarnings++;
   }
 
+  // 3b. imported (Momo) paid memberships ending within 14 days with no site
+  // subscription lined up: one nudge each to set up their card here.
+  const in14 = new Date(now.getTime() + 14 * 86400_000).toISOString();
+  const { data: legacyEnding } = await db
+    .from("memberships")
+    .select("id, user_id, current_period_end, membership_plans(name, price_pence)")
+    .eq("source", "momo")
+    .eq("status", "active")
+    .is("stripe_subscription_id", null)
+    .is("replaced_by", null)
+    .is("transfer_nudged_at", null)
+    .lte("current_period_end", in14);
+  let transferNudges = 0;
+  for (const m of legacyEnding ?? []) {
+    const plan = m.membership_plans as unknown as { name: string; price_pence: number } | null;
+    if (!plan || plan.price_pence <= 0) continue; // free legacy plans are renewed by the team
+    const { count } = await db.from("memberships").select("id", { count: "exact", head: true }).eq("user_id", m.user_id).not("stripe_subscription_id", "is", null).in("status", ["active", "paused", "past_due"]);
+    if ((count ?? 0) > 0) continue;
+    await emit("membership.transfer_needed", m.user_id, { membership_id: m.id, plan: plan.name, period_end: m.current_period_end });
+    await db.from("memberships").update({ transfer_nudged_at: now.toISOString() }).eq("id", m.id);
+    transferNudges++;
+  }
+
   // 4. tidy up: sessions that finished -> completed; bookings never checked in -> stay 'booked' (counts as attended for engagement)
   await db.from("class_sessions").update({ status: "completed" }).eq("status", "scheduled").lt("ends_at", new Date(now.getTime() - 3600_000).toISOString());
 
-  return NextResponse.json({ reminders, flagChanges, expiryWarnings });
+  return NextResponse.json({ reminders, flagChanges, expiryWarnings, transferNudges });
 }

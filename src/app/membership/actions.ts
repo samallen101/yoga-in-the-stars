@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { createAdminClient, getCurrentUser } from "@/lib/supabase/server";
 import { checkoutForPlan, checkoutForClassPass, portalUrl } from "@/lib/checkout";
+import { legacyMembershipOf } from "@/lib/membership";
 
 export async function startPlanCheckout(formData: FormData) {
   const me = await getCurrentUser();
@@ -10,9 +11,12 @@ export async function startPlanCheckout(formData: FormData) {
   const db = createAdminClient();
   const { data: plan } = await db.from("membership_plans").select("*").eq("id", String(formData.get("plan_id"))).eq("active", true).single();
   if (!plan) redirect("/membership?msg=" + encodeURIComponent("That plan isn't available."));
-  const { data: already } = await db.rpc("is_active_member", { uid: me.user.id });
-  if (already) redirect("/me");
-  const url = await checkoutForPlan(me.profile, plan);
+  const legacy = await legacyMembershipOf(me.user.id);
+  if (!legacy) {
+    const { data: already } = await db.rpc("is_active_member", { uid: me.user.id });
+    if (already) redirect("/me");
+  }
+  const url = await checkoutForPlan(me.profile, plan, legacy);
   redirect(url);
 }
 

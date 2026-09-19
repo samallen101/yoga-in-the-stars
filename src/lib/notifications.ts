@@ -49,6 +49,18 @@ export async function sendTransactionalEmails(limit = 50) {
           text: `Hi ${first},\n\nYour ${p.plan} is active. Every regular class is now included, and you get member prices on events.\n\nBook classes: ${siteUrl("/schedule")}\nManage your membership: ${siteUrl("/me")}${settings?.whatsapp_community_url ? `\n\nJoin the members' WhatsApp community: ${settings.whatsapp_community_url}` : ""}\n\nThank you for keeping the space alive.\n${club}`,
         };
         break;
+      case "membership.moved":
+        mail = {
+          subject: `Your membership has moved over`,
+          text: `Hi ${first},\n\nThank you. Your ${p.plan} is now set up on the new site${p.trial ? ` and your first payment is on ${fmtDateTime(String(p.starts_billing)).split(", ")[0]}, when your current paid period ends. Nothing is charged before then.` : `.`}\n\nBook classes: ${siteUrl("/schedule")}\nManage your membership: ${siteUrl("/me")}\n\n${club}`,
+        };
+        break;
+      case "membership.transfer_needed":
+        mail = {
+          subject: `One small thing before ${fmtDateTime(String(p.period_end)).split(", ")[0]}`,
+          text: `Hi ${first},\n\nWe've moved our bookings to a new home and your ${p.plan} came with us. Your current paid period runs until ${fmtDateTime(String(p.period_end)).split(", ")[0]}; after that, the old system won't renew it.\n\nTo keep your membership going without a gap, set up your card on the new site (it takes a minute and nothing is charged until ${fmtDateTime(String(p.period_end)).split(", ")[0]}):\n${siteUrl("/me")}\n\nIf anything is unclear, just reply to this email.\n${club}`,
+        };
+        break;
       case "class_pass.purchased":
       case "class_pass.granted":
         mail = {
