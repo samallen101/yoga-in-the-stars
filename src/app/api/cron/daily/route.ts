@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { emit } from "@/lib/outbox";
 import { membersLive } from "@/lib/gate";
+import { getEngagement } from "@/lib/admin";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -41,7 +42,7 @@ export async function GET(req: NextRequest) {
   }
 
   // 2. engagement flags: compare today's flag with the last one we emitted
-  const { data: eng } = await db.from("engagement").select("user_id, full_name, flag, last_attended_at, is_member");
+  const eng = await getEngagement(); // pages past Supabase's 1,000-row cap
   const { data: lastFlags } = await db
     .from("outbox_events")
     .select("user_id, payload, created_at")

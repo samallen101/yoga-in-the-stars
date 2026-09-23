@@ -6,8 +6,16 @@ export type EngagementRow = Views<"engagement">;
 
 export async function getEngagement() {
   const db = createAdminClient();
-  const { data } = await db.from("engagement").select("*").order("full_name");
-  return (data ?? []) as EngagementRow[];
+  // Supabase caps a request at 1,000 rows and there are ~2,800 people since the
+  // Momo import, so page through them all (counts were silently short before).
+  const rows: EngagementRow[] = [];
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await db.from("engagement").select("*").order("full_name").order("user_id").range(from, from + 999);
+    if (error) throw error;
+    rows.push(...((data ?? []) as EngagementRow[]));
+    if (!data || data.length < 1000) break;
+  }
+  return rows;
 }
 
 export async function getDashboard() {
