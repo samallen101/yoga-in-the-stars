@@ -109,8 +109,21 @@ export async function GET(req: NextRequest) {
     transferNudges++;
   }
 
+  // 3c. paused memberships without Stripe behind them restart on their date
+  // (Stripe ones are resumed by Stripe and mirrored by the webhook).
+  const { data: toResume } = await db
+    .from("memberships")
+    .select("id, user_id, membership_plans(name)")
+    .eq("status", "paused")
+    .is("stripe_subscription_id", null)
+    .lte("paused_until", now.toISOString());
+  for (const m of toResume ?? []) {
+    await db.from("memberships").update({ status: "active", paused_until: null }).eq("id", m.id);
+    await emit("membership.resumed", m.user_id, { membership_id: m.id, plan: (m.membership_plans as unknown as { name: string } | null)?.name ?? null, by: "schedule" });
+  }
+
   // 4. tidy up: sessions that finished -> completed; bookings never checked in -> stay 'booked' (counts as attended for engagement)
   await db.from("class_sessions").update({ status: "completed" }).eq("status", "scheduled").lt("ends_at", new Date(now.getTime() - 3600_000).toISOString());
 
-  return NextResponse.json({ reminders, flagChanges, expiryWarnings, transferNudges });
+  return NextResponse.json({ reminders, flagChanges, expiryWarnings, transferNudges, resumed: toResume?.length ?? 0 });
 }

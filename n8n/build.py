@@ -95,6 +95,12 @@ switch (type) {
   }
     break;
 
+  case 'session.moved': {
+    const affected = payload.affected || [];
+    teamAlert(`${payload.class_name} moved from ${when(payload.from)} to ${when(payload.starts_at)}. ${affected.length} booked or waitlisted have been emailed.`);
+    break;
+  }
+
   case 'engagement.flag_changed':
     if (payload.to === 'orange' && canMessage(user)) out.push({ to: user.phone, template: 'yits_checkin', params: [first(user.full_name)] });
     if (payload.to === 'red') teamAlert(`${payload.name || user?.full_name} has gone red (last class ${payload.last_attended_at ? when(payload.last_attended_at) : 'never'}). Time for a real conversation.`);

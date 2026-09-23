@@ -4,6 +4,9 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createAdminClient, requireRole } from "@/lib/supabase/server";
 import { emit } from "@/lib/outbox";
+import { stripe } from "@/lib/stripe";
+import { fromZonedTime } from "date-fns-tz";
+import { TZ } from "@/lib/format";
 
 function back(id: string, msg: string): never {
   revalidatePath(`/admin/people/${id}`);
@@ -99,6 +102,40 @@ export async function adjustMembership(formData: FormData) {
     await emit("membership.ended_by_staff", id, { membership_id: mId, plan: m.membership_plans?.name, by: me.user.id });
     back(id, `✓ ${m.membership_plans?.name} ended.`);
   }
+  if (action === "pause") {
+    // Pause until a date (London midnight). Stripe members: billing is voided
+    // until then and Stripe resumes it itself; the webhook mirrors the status.
+    // Others (Momo/granted): paused here, and the paid time they miss is added
+    // on to the end so nobody loses what they paid for.
+    const untilDay = String(formData.get("pause_until") ?? "").trim();
+    const until = untilDay ? fromZonedTime(`${untilDay}T00:00:00`, TZ) : null;
+    if (!until || isNaN(until.getTime()) || until.getTime() <= Date.now()) back(id, "Pick a resume date in the future.");
+    if (m.status !== "active") back(id, "Only an active membership can be paused.");
+    if (m.stripe_subscription_id) {
+      await stripe().subscriptions.update(m.stripe_subscription_id, { pause_collection: { behavior: "void", resumes_at: Math.floor(until.getTime() / 1000) } });
+      await db.from("memberships").update({ status: "paused", paused_until: until.toISOString() }).eq("id", mId);
+    } else {
+      const pauseMs = until.getTime() - Date.now();
+      const end = m.current_period_end ? new Date(Date.parse(m.current_period_end) + pauseMs).toISOString() : null;
+      await db.from("memberships").update({ status: "paused", paused_until: until.toISOString(), current_period_end: end }).eq("id", mId);
+    }
+    await emit("membership.paused", id, { membership_id: mId, plan: m.membership_plans?.name, resumes_at: until.toISOString(), by: me.user.id });
+    back(id, `✓ ${m.membership_plans?.name} paused until ${untilDay}. It restarts by itself that day.`);
+  }
+  if (action === "resume") {
+    if (m.status !== "paused") back(id, "That membership isn't paused.");
+    if (m.stripe_subscription_id) {
+      await stripe().subscriptions.update(m.stripe_subscription_id, { pause_collection: "" });
+    } else if (m.paused_until && m.current_period_end && Date.parse(m.paused_until) > Date.now()) {
+      // Resuming early: take back the unused part of the extension.
+      const unused = Date.parse(m.paused_until) - Date.now();
+      await db.from("memberships").update({ current_period_end: new Date(Date.parse(m.current_period_end) - unused).toISOString() }).eq("id", mId);
+    }
+    await db.from("memberships").update({ status: "active", paused_until: null }).eq("id", mId);
+    await emit("membership.resumed", id, { membership_id: mId, plan: m.membership_plans?.name, by: me.user.id });
+    back(id, `✓ ${m.membership_plans?.name} resumed.`);
+  }
+
   const days = Math.max(1, Number(formData.get("days") ?? 30));
   const base = m.current_period_end && new Date(m.current_period_end) > new Date() ? new Date(m.current_period_end) : new Date();
   const end = new Date(base.getTime() + days * 86400_000).toISOString();

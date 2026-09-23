@@ -69,6 +69,21 @@ export default async function PersonPage({ params, searchParams }: PageProps<"/a
                       <button name="action" value="end" className="btn-ghost py-1 text-red">End now</button>
                     </form>
                   )}
+                  {m.status === "active" && (
+                    <form action={adjustMembership} className="flex flex-wrap items-center gap-2 text-xs">
+                      <input type="hidden" name="user_id" value={id} /><input type="hidden" name="membership_id" value={m.id} />
+                      <span className="text-ink-soft">Pause until:</span>
+                      <input name="pause_until" type="date" className="input w-36 py-1" aria-label="pause until" required />
+                      <button name="action" value="pause" className="btn-ghost py-1">Pause</button>
+                    </form>
+                  )}
+                  {m.status === "paused" && (
+                    <form action={adjustMembership} className="flex flex-wrap items-center gap-2 text-xs">
+                      <input type="hidden" name="user_id" value={id} /><input type="hidden" name="membership_id" value={m.id} />
+                      <span className="text-ink-soft">Paused{m.paused_until ? ` until ${fmtDate(m.paused_until, "d MMM yy")}` : ""}.</span>
+                      <button name="action" value="resume" className="btn-ghost py-1">Resume now</button>
+                    </form>
+                  )}
                 </li>
               ))}
             </ul>

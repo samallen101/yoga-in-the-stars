@@ -26,7 +26,7 @@ export async function sendTransactionalEmails(limit = 50) {
 
   for (const e of events ?? []) {
     const payload = (e.payload ?? {}) as Payload;
-    if (!e.profiles?.email && e.type !== "session.cancelled") {
+    if (!e.profiles?.email && e.type !== "session.cancelled" && e.type !== "session.moved") {
       await db.from("outbox_events").update({ emailed_at: new Date().toISOString() }).eq("id", e.id);
       continue;
     }
@@ -116,6 +116,24 @@ export async function sendTransactionalEmails(limit = 50) {
           text: `Hi ${first},\n\nYou still have ${p.credits_remaining} classes on your pass and it expires on ${fmtDateTime(String(p.expires_at))}. Book them in: ${siteUrl("/schedule")}\n\n${club}`,
         };
         break;
+    }
+
+    // Session moved (e.g. the pub has the room): one email per booked or waitlisted person.
+    if (e.type === "session.moved") {
+      const ids = (payload.affected_user_ids as string[]) ?? [];
+      if (ids.length) {
+        const { data: people } = await db.from("profiles").select("email, full_name").in("id", ids);
+        for (const person of people ?? []) {
+          const r = await sendEmail({
+            to: person.email,
+            subject: `Time change: ${p.class_name} is now ${fmtDateTime(String(p.starts_at))}`,
+            text: `Hi ${(person.full_name ?? "there").split(" ")[0]},\n\n${p.class_name} has moved from ${fmtDateTime(String(p.from))} to ${fmtDateTime(String(p.starts_at))}.${p.reason ? `\n\n${p.reason}` : ""}\n\nYou're still booked. If the new time doesn't work, cancel from My club (${siteUrl("/me")}), or just reply to this email and we'll make sure you get your credit back.\n\n${club}`,
+          });
+          if (!r.held) sent++;
+        }
+      }
+      await db.from("outbox_events").update({ emailed_at: new Date().toISOString() }).eq("id", e.id);
+      continue;
     }
 
     // Session cancelled: one email per affected person (the event is attached to the staff member who cancelled).

@@ -56,12 +56,15 @@ How to run it: work through the sections in order, in one sitting if possible, w
 - [ ] Teacher marks attendance (attended, no show) and it appears on the person's page in admin and feeds the engagement colour.
 - [ ] Teacher cancels a class: every booked person gets their credit back, everyone booked and waitlisted gets the cancellation message, the class shows as cancelled on the schedule.
 - [ ] The pub takes the room: admin cancels or moves the class (edit the time). Bookings follow the new time and the people booked are notified.
-- [ ] Substitute teacher: admin changes the teacher on a session. Reminder emails name the new teacher.
+- [ ] Substitute teacher: admin changes the teacher on a session (Admin, Schedule, Edit). Nobody is messaged, and reminder emails name the new teacher.
+- [ ] Move a class to a new time with a reason (Admin, Schedule, Edit): bookings follow the new time, booked and waitlisted people get the time-change email (test addresses only while messages are held), and the team gets a WhatsApp alert once n8n is updated.
 
 ## 6. Admin fix-it tools (People, open any person)
 
 - [ ] Add 1 credit to a pass, remove 1 credit, move an expiry date. Each shows a confirmation and the change is visible on the person's /me.
 - [ ] Extend a membership by 7 days. End a membership now.
+- [ ] Pause a Stripe membership until a date next month: Stripe shows the subscription paused (billing voided), the site shows Paused until that date, and the member can't book with it. Resume now: Stripe and the site both show active.
+- [ ] Pause an imported (Momo) membership: its end date moves later by the pause length. Run the daily cron with the pause date set to yesterday: it comes back to active by itself.
 - [ ] Cancel a booking on someone's behalf: credit always comes back, even inside the cancel cutoff.
 - [ ] Comp someone onto a class: booking appears with no credit taken and no charge.
 - [ ] Record a cash payment: order appears with method cash and shows in the person's history.

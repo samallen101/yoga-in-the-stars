@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { createAdminClient } from "@/lib/supabase/server";
-import { fmtDateTime } from "@/lib/format";
+import { fmtDateTime, TZ } from "@/lib/format";
 import { PageHeader, Notice, StatusPill } from "@/components/ui";
-import { saveClassType, createSessions, deleteSession, saveLocation } from "./actions";
+import { saveClassType, createSessions, deleteSession, saveLocation, updateSession } from "./actions";
 
 export const metadata = { title: "Schedule admin" };
 
@@ -134,7 +134,30 @@ export default async function AdminSchedulePage({ searchParams }: PageProps<"/ad
                   <td className="text-ink-soft">{s.teacher?.full_name ?? "—"}</td>
                   <td>{Number(c?.booked ?? 0)}/{s.capacity}</td>
                   <td className="text-ink-soft text-xs">{s.pricing.replace(/_/g, " ")}</td>
-                  <td className="pr-5 text-right">
+                  <td className="pr-5 text-right space-y-1">
+                    {s.status === "scheduled" && (
+                      <details className="text-left">
+                        <summary className="btn-ghost text-xs cursor-pointer inline-block">Edit</summary>
+                        <form action={updateSession} className="mt-2 space-y-2 min-w-64">
+                          <input type="hidden" name="id" value={s.id} />
+                          <div>
+                            <label className="label">Teacher</label>
+                            <select name="teacher_id" defaultValue={s.teacher_id ?? ""} className="input">
+                              <option value="">No teacher named</option>
+                              {(teachers ?? []).map((t) => <option key={t.id} value={t.id}>{t.full_name}</option>)}
+                            </select>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div><label className="label">Date</label><input name="date" type="date" defaultValue={londonDate(s.starts_at)} className="input" /></div>
+                            <div><label className="label">Time</label><input name="time" type="time" defaultValue={londonTime(s.starts_at)} className="input" /></div>
+                          </div>
+                          <div><label className="label">Capacity</label><input name="capacity" type="number" defaultValue={s.capacity} className="input" /></div>
+                          <div><label className="label">Reason, if the time changes (goes in the message)</label><input name="reason" className="input" placeholder="The pub needs the room that evening." /></div>
+                          <p className="text-xs text-ink-soft">Changing the time tells everyone booked or waitlisted. Teacher and capacity changes are silent.</p>
+                          <button className="btn-primary text-xs">Save changes</button>
+                        </form>
+                      </details>
+                    )}
                     {Number(c?.booked ?? 0) === 0 && (
                       <form action={deleteSession}><input type="hidden" name="id" value={s.id} /><button className="btn-ghost text-xs">Delete</button></form>
                     )}
@@ -149,3 +172,6 @@ export default async function AdminSchedulePage({ searchParams }: PageProps<"/ad
     </div>
   );
 }
+
+const londonDate = (iso: string) => new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(new Date(iso));
+const londonTime = (iso: string) => new Intl.DateTimeFormat("en-GB", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(iso));
