@@ -53,7 +53,10 @@ const when = (iso) => {
 };
 const dateOnly = (iso) => iso ? new Date(iso).toLocaleDateString('en-GB', { timeZone: 'Europe/London', day: 'numeric', month: 'long' }) : 'the end of your current period';
 const timeOnly = (iso) => new Date(iso).toLocaleTimeString('en-GB', { timeZone: 'Europe/London', hour: '2-digit', minute: '2-digit' });
-const canMessage = (p) => p && p.phone && p.whatsapp_opt_in;
+// Launch gate: members only get WhatsApp once the site says member messages are
+// live, or if they're on the test list. Fails closed if the flag is missing.
+const allowed = (p) => club.member_messages_live === true || (club.test_emails || []).includes(String(p?.email || '').toLowerCase());
+const canMessage = (p) => p && p.phone && p.whatsapp_opt_in && allowed(p);
 const teamAlert = (text) => { for (const to of club.team_numbers || []) out.push({ to, template: 'yits_team_alert', params: [text] }); };
 
 switch (type) {
@@ -98,7 +101,7 @@ switch (type) {
     break;
 
   case 'broadcast.whatsapp':
-    if (payload.phone) out.push({ to: payload.phone, template: 'yits_broadcast', params: [first(payload.full_name), payload.message] });
+    if (payload.phone && allowed({ email: payload.email })) out.push({ to: payload.phone, template: 'yits_broadcast', params: [first(payload.full_name), payload.message] });
     break;
 
   case 'class_pass.expiring':

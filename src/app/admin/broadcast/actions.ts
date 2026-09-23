@@ -45,15 +45,17 @@ export async function sendBroadcast(formData: FormData) {
 
   const personalise = (text: string, r: { full_name: string | null }) => text.replace(/\{\{\s*first_name\s*\}\}/g, (r.full_name ?? "there").split(" ")[0]);
 
+  let held = 0;
   if (channel === "email") {
     for (const r of recipients) {
       if (!r.email) continue;
-      await sendEmail({ to: r.email, subject: subject || "A message from Yoga in the Stars", text: personalise(body, r) });
+      const res = await sendEmail({ to: r.email, subject: subject || "A message from Yoga in the Stars", text: personalise(body, r) });
+      if (res.held) held++;
     }
   } else {
     // n8n does the sending from the club WhatsApp number; one event per person keeps retries simple.
     for (const r of recipients) {
-      await emit("broadcast.whatsapp", r.id, { phone: r.phone, full_name: r.full_name, message: personalise(body, r), audience });
+      await emit("broadcast.whatsapp", r.id, { phone: r.phone, email: r.email, full_name: r.full_name, message: personalise(body, r), audience });
     }
   }
 
@@ -67,5 +69,6 @@ export async function sendBroadcast(formData: FormData) {
     sent_at: new Date().toISOString(),
   });
   await emit("broadcast.sent", me.user.id, { channel, audience, recipient_count: recipients.length, subject });
-  back(`✓ ${channel === "email" ? "Emailed" : "Queued WhatsApp for"} ${recipients.length} ${recipients.length === 1 ? "person" : "people"}.`);
+  const heldNote = held ? ` ${held} held: member messages aren't live yet (Admin → Settings), so only test addresses received it.` : "";
+  back(`✓ ${channel === "email" ? "Emailed" : "Queued WhatsApp for"} ${recipients.length - held} ${recipients.length - held === 1 ? "person" : "people"}.${heldNote}`);
 }

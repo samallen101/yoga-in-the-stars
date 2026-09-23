@@ -1,6 +1,7 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/server";
 import type { Json } from "@/lib/database.types";
+import { getGate } from "@/lib/gate";
 
 /**
  * Write a business event to the outbox. A cron job forwards undelivered events
@@ -40,6 +41,8 @@ export async function flushOutbox(limit = 50) {
 
   const { data: settings } = await db.from("settings").select("club_name, whatsapp_team_numbers, whatsapp_community_url, contact_whatsapp").eq("id", 1).single();
   const site = (process.env.NEXT_PUBLIC_SITE_URL || "").replace(/\/$/, "");
+  // Launch gate for n8n too: WhatsApp to members only when live, or to test addresses.
+  const gate = await getGate().catch(() => ({ live: false, allowlist: [] as string[] }));
 
   let delivered = 0;
   let failed = 0;
@@ -59,7 +62,11 @@ export async function flushOutbox(limit = 50) {
             team_numbers: settings?.whatsapp_team_numbers ?? [],
             community_url: settings?.whatsapp_community_url ?? null,
             site_url: site,
+            member_messages_live: gate.live,
+            test_emails: gate.allowlist,
           },
+          // n8n must only message the member if this is true (team pings are fine either way).
+          member_messages_allowed: gate.live || gate.allowlist.includes(String(e.profiles?.email ?? "").toLowerCase()),
         }),
       });
       if (!res.ok) throw new Error(`n8n responded ${res.status}`);

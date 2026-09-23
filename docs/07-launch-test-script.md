@@ -6,6 +6,8 @@ How to run it: work through the sections in order, in one sitting if possible, w
 
 ## 0. Before you start
 
+- [ ] Admin, Settings: "Member messages live from" is BLANK and the test addresses are only the team's. Health shows member messages held.
+
 - [ ] /api/health returns 200 (warnings about test-mode Stripe and no email provider are expected until launch).
 - [ ] Admin, Health page shows the last outbox events flowing to n8n with no lag.
 - [ ] n8n: the three YITS workflows are active (tick, events, uptime monitor).
@@ -69,6 +71,9 @@ How to run it: work through the sections in order, in one sitting if possible, w
 
 ## 7. Messages and reminders
 
+- [ ] Launch gate: with messages held, send a broadcast to all members. Only the test addresses receive it, the admin message says how many were held, and Health counts them. Resend's log shows no other recipients.
+- [ ] Launch gate: run the daily cron by hand. No move-over nudges are emitted while messages are held.
+
 - [ ] Booking confirmation arrives (email once Resend is on, WhatsApp once Meta is on; until then confirm the event reaches n8n).
 - [ ] Reminder for tomorrow's class goes out when the daily cron runs (trigger it by hand: GET /api/cron/daily with the cron secret header) and is not sent twice if the cron runs twice.
 - [ ] Class pass expiring soon message fires for a pass expiring inside the window.
@@ -95,6 +100,7 @@ How to run it: work through the sections in order, in one sitting if possible, w
 - [ ] Resend domain verified, sender address set, one real email sent to Sam.
 - [ ] Prices confirmed with Tarin (Standard £79 or £75, HALFPRICEYOGA).
 - [ ] Momo re-exported one last time and imported again (the script skips people and orders it already has) so nothing bought in the gap is lost.
-- [ ] Momo set to stop taking new bookings; members told the new address and that their credits and memberships have moved.
+- [ ] Momo set to stop taking new bookings, and every recurring Momo membership renewal cancelled in Momo (the move-over email tells members Momo has stopped their renewal, so this must be true first). Members told the new address and that their credits and memberships have moved.
+- [ ] Only then: Admin, Settings, set "Member messages live from" to today. Health shows member messages LIVE. Before this date the site and n8n only message the test addresses (added after the 22 Sep incident, when five members got move-over emails early).
 - [ ] Imported members with a Momo membership are asked to set up their card on the new site (there is no Stripe subscription behind them yet); admin extends their membership by hand if they need time.
 - [ ] Sam, Tarin and Basia each book and cancel one class on the live site as a final check.

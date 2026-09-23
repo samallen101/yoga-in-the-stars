@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { emit } from "@/lib/outbox";
+import { membersLive } from "@/lib/gate";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -94,7 +95,11 @@ export async function GET(req: NextRequest) {
     .is("transfer_nudged_at", null)
     .lte("current_period_end", in14);
   let transferNudges = 0;
-  for (const m of legacyEnding ?? []) {
+  // Only once member messages are live: before switch-over Momo still renews
+  // these, so a nudge would be wrong (see 22 Sep incident). Nothing is marked
+  // nudged while held, so everyone gets exactly one nudge after go-live.
+  const live = await membersLive();
+  for (const m of live ? legacyEnding ?? [] : []) {
     const plan = m.membership_plans as unknown as { name: string; price_pence: number } | null;
     if (!plan || plan.price_pence <= 0) continue; // free legacy plans are renewed by the team
     const { count } = await db.from("memberships").select("id", { count: "exact", head: true }).eq("user_id", m.user_id).not("stripe_subscription_id", "is", null).in("status", ["active", "paused", "past_due"]);

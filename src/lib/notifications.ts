@@ -57,8 +57,8 @@ export async function sendTransactionalEmails(limit = 50) {
         break;
       case "membership.transfer_needed":
         mail = {
-          subject: `One small thing before ${fmtDateTime(String(p.period_end)).split(", ")[0]}`,
-          text: `Hi ${first},\n\nWe've moved our bookings to a new home and your ${p.plan} came with us. Your current paid period runs until ${fmtDateTime(String(p.period_end)).split(", ")[0]}; after that, the old system won't renew it.\n\nTo keep your membership going without a gap, set up your card on the new site (it takes a minute and nothing is charged until ${fmtDateTime(String(p.period_end)).split(", ")[0]}):\n${siteUrl("/me")}\n\nIf anything is unclear, just reply to this email.\n${club}`,
+          subject: `Your membership has moved to our new booking site`,
+          text: `Hi ${first},\n\nAs you'll have heard, we've moved our bookings from Momo to our own site, and your ${p.plan} came with us. Momo has stopped your old renewal, so nothing more will be taken there.\n\nTo carry on after ${fmtDateTime(String(p.period_end)).split(", ")[0]}, add your card here. It takes a minute, and nothing is charged until then:\n${siteUrl("/me")}\n\nAny questions, just reply to this email.\n${club}`,
         };
         break;
       case "class_pass.purchased":
@@ -136,11 +136,13 @@ export async function sendTransactionalEmails(limit = 50) {
       continue;
     }
 
+    let held = false;
     if (mail && to) {
-      await sendEmail({ to, ...mail });
-      sent++;
+      const r = await sendEmail({ to, ...mail });
+      if (r.held) held = true;
+      else sent++;
     }
-    await db.from("outbox_events").update({ emailed_at: new Date().toISOString() }).eq("id", e.id);
+    await db.from("outbox_events").update({ emailed_at: new Date().toISOString(), email_held: held }).eq("id", e.id);
   }
   return { sent };
 }

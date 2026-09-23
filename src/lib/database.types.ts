@@ -656,6 +656,7 @@ export type Database = {
           emailed_at: string | null
           attempts: number
           last_error: string | null
+          email_held: boolean
         }
         Insert: {
           id?: string
@@ -667,6 +668,7 @@ export type Database = {
           emailed_at?: string | null
           attempts?: number
           last_error?: string | null
+          email_held?: boolean
         }
         Update: {
           id?: string
@@ -678,6 +680,7 @@ export type Database = {
           emailed_at?: string | null
           attempts?: number
           last_error?: string | null
+          email_held?: boolean
         }
         Relationships: [
           { foreignKeyName: "outbox_events_user_id_fkey"; columns: ["user_id"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
@@ -778,6 +781,8 @@ export type Database = {
           instagram_url: string | null
           facebook_url: string | null
           youtube_url: string | null
+          member_messages_live_from: string | null
+          message_test_allowlist: string[]
         }
         Insert: {
           id?: number
@@ -798,6 +803,8 @@ export type Database = {
           instagram_url?: string | null
           facebook_url?: string | null
           youtube_url?: string | null
+          member_messages_live_from?: string | null
+          message_test_allowlist?: string[]
         }
         Update: {
           id?: number
@@ -818,6 +825,8 @@ export type Database = {
           instagram_url?: string | null
           facebook_url?: string | null
           youtube_url?: string | null
+          member_messages_live_from?: string | null
+          message_test_allowlist?: string[]
         }
         Relationships: []
       }

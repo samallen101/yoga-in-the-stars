@@ -26,8 +26,19 @@ export async function saveSettings(formData: FormData) {
       cancel_cutoff_hours: num("cancel_cutoff_hours", 2),
       orange_after_days: num("orange_after_days", 10),
       red_after_days: num("red_after_days", 21),
+      member_messages_live_from: londonMidnight(str("member_messages_live_from")),
+      message_test_allowlist: str("message_test_allowlist").split(/[\s,]+/).map((s) => s.trim().toLowerCase()).filter((s) => s.includes("@")),
     })
     .eq("id", 1);
   revalidatePath("/", "layout");
   redirect("/admin/settings?msg=" + encodeURIComponent("Saved."));
+}
+
+/** "2026-10-12" -> that day's midnight in London as an ISO timestamp; blank -> null (messages held). */
+function londonMidnight(day: string): string | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(day);
+  if (!m) return null;
+  const utc = Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  const londonHour = Number(new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", hour: "numeric", hourCycle: "h23" }).format(new Date(utc)));
+  return new Date(utc - londonHour * 3600_000).toISOString();
 }

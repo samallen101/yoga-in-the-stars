@@ -8,6 +8,9 @@ export default async function SettingsPage({ searchParams }: PageProps<"/admin/s
   const sp = await searchParams;
   const { data: s } = await createAdminClient().from("settings").select("*").eq("id", 1).single();
   const msg = typeof sp.msg === "string" ? sp.msg : null;
+  const liveFrom = s?.member_messages_live_from ?? null;
+  const liveNow = !!liveFrom && Date.parse(liveFrom) <= Date.now();
+  const liveDay = liveFrom ? new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date(liveFrom)) : "";
   return (
     <div className="max-w-2xl space-y-6">
       <PageHeader title="Settings" />
@@ -44,6 +47,15 @@ export default async function SettingsPage({ searchParams }: PageProps<"/admin/s
           <div><label className="label">Free cancellation (hours before)</label><input name="cancel_cutoff_hours" type="number" defaultValue={s?.cancel_cutoff_hours} className="input" /></div>
           <div><label className="label">Orange flag after (days without a class)</label><input name="orange_after_days" type="number" defaultValue={s?.orange_after_days} className="input" /></div>
           <div><label className="label">Red flag after (days)</label><input name="red_after_days" type="number" defaultValue={s?.red_after_days} className="input" /></div>
+        </div>
+        <div className="rounded-lg border border-brand p-4 space-y-3">
+          <p className="font-medium">Member messages: {liveNow ? "LIVE" : "held (test only)"}</p>
+          <p className="text-xs text-ink-soft">Until the go-live date, emails and WhatsApp only reach the test addresses below. Everything else is dropped and logged, never queued, so switching on can&apos;t release a backlog. Leave the date blank to keep messages held. Set it only on switch-over day, once Momo renewals are stopped.</p>
+          <div><label className="label">Member messages live from (London, midnight)</label><input name="member_messages_live_from" type="date" defaultValue={liveDay} className="input" /></div>
+          <div>
+            <label className="label">Test addresses (always allowed; comma or new line separated)</label>
+            <textarea name="message_test_allowlist" rows={3} defaultValue={(s?.message_test_allowlist ?? []).join("\n")} className="input" />
+          </div>
         </div>
         <button className="btn-primary">Save settings</button>
       </form>

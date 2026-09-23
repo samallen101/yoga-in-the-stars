@@ -62,6 +62,22 @@ export async function runHealthChecks(): Promise<{ status: string; checked_at: s
   // 5. Email configured
   checks.push({ name: "email", ok: true, warn: !process.env.RESEND_API_KEY, detail: process.env.RESEND_API_KEY ? "Resend key set" : "no email provider yet: emails are logged, not sent" });
 
+  // 6. Member messages gate (held before switch-over; test addresses only)
+  try {
+    const { data } = await createAdminClient().from("settings").select("member_messages_live_from, message_test_allowlist").eq("id", 1).single();
+    const from = data?.member_messages_live_from ?? null;
+    const live = !!from && Date.parse(from) <= Date.now();
+    const { count: held } = await createAdminClient().from("outbox_events").select("id", { count: "exact", head: true }).eq("email_held", true).gte("created_at", new Date(Date.now() - 7 * 86400_000).toISOString());
+    checks.push({
+      name: "member messages", ok: true, warn: !live,
+      detail: live
+        ? `LIVE since ${new Date(from!).toISOString().slice(0, 10)}`
+        : `held: only ${(data?.message_test_allowlist ?? []).length} test address(es) receive anything${from ? `; goes live ${new Date(from).toISOString().slice(0, 10)}` : ""}; ${held ?? 0} email(s) held in the last 7 days`,
+    });
+  } catch (e) {
+    checks.push({ name: "member messages", ok: false, detail: String((e as Error).message ?? e).slice(0, 120) });
+  }
+
   const ok = checks.every((c) => c.ok);
   return {
     status: ok ? (checks.some((c) => c.warn) ? "ok-with-warnings" : "ok") : "problem",
