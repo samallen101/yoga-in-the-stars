@@ -7,7 +7,6 @@ How to run it: work through the sections in order, in one sitting if possible, w
 ## 0. Before you start
 
 - [ ] Admin, Settings: "Member messages live from" is BLANK and the test addresses are only the team's. Health shows member messages held.
-
 - [ ] /api/health returns 200 (warnings about test-mode Stripe and no email provider are expected until launch).
 - [ ] Admin, Health page shows the last outbox events flowing to n8n with no lag.
 - [ ] n8n: the three YITS workflows are active (tick, events, uptime monitor).
@@ -76,7 +75,6 @@ How to run it: work through the sections in order, in one sitting if possible, w
 
 - [ ] Launch gate: with messages held, send a broadcast to all members. Only the test addresses receive it, the admin message says how many were held, and Health counts them. Resend's log shows no other recipients.
 - [ ] Launch gate: run the daily cron by hand. No move-over nudges are emitted while messages are held.
-
 - [ ] Booking confirmation arrives (email once Resend is on, WhatsApp once Meta is on; until then confirm the event reaches n8n).
 - [ ] Reminder for tomorrow's class goes out when the daily cron runs (trigger it by hand: GET /api/cron/daily with the cron secret header) and is not sent twice if the cron runs twice.
 - [ ] Class pass expiring soon message fires for a pass expiring inside the window.
@@ -99,6 +97,8 @@ How to run it: work through the sections in order, in one sitting if possible, w
 
 ## 10. Switch-over day
 
+- [ ] Vercel project on the Pro plan (Hobby is non-commercial only).
+- [ ] yogainthestars.com points at the new site: email records (Zoho MX, SPF, DKIM, Resend) copied out of Groove first, then root and www moved to Vercel; NEXT_PUBLIC_SITE_URL, Supabase auth URLs and the Stripe webhook updated to the domain; old Groove pages redirect.
 - [ ] Stripe live keys in Vercel, webhook endpoint recreated for live mode, health shows payments live.
 - [ ] Resend domain verified, sender address set, one real email sent to Sam.
 - [ ] Prices confirmed with Tarin (Standard £79 or £75, HALFPRICEYOGA).
