@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import type Stripe from "stripe";
 import { stripe } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase/server";
-import { confirmPaidBooking } from "@/lib/booking";
+import { confirmPaidBooking, cancelBooking } from "@/lib/booking";
 import { emit } from "@/lib/outbox";
 
 export const runtime = "nodejs";
@@ -242,10 +242,23 @@ async function onRefund(charge: Stripe.Charge) {
   const db = createAdminClient();
   const pi = typeof charge.payment_intent === "string" ? charge.payment_intent : charge.payment_intent?.id;
   if (!pi) return;
-  const { data: order } = await db.from("orders").select("id, user_id, kind").eq("stripe_payment_intent_id", pi).maybeSingle();
+  const { data: order } = await db.from("orders").select("id, user_id, kind, class_pass_id").eq("stripe_payment_intent_id", pi).maybeSingle();
   if (!order) return;
-  await db.from("orders").update({ status: "refunded" }).eq("id", order.id);
-  await emit("order.refunded", order.user_id, { order_id: order.id, kind: order.kind, amount_pence: charge.amount_refunded });
+  // A partial refund (a goodwill amount back) leaves what was bought in place.
+  const full = charge.refunded === true;
+  if (full) {
+    await db.from("orders").update({ status: "refunded" }).eq("id", order.id);
+    // Undo what the money bought, so a refunded pass can't be used and a
+    // refunded drop-in doesn't keep its place (the waitlist moves up).
+    if (order.kind === "class_pass" && order.class_pass_id) {
+      await db.from("class_passes").update({ credits_remaining: 0, expires_at: new Date().toISOString() }).eq("id", order.class_pass_id);
+    }
+    if (order.kind === "drop_in" || order.kind === "pay_what_you_wish") {
+      const { data: bookings } = await db.from("bookings").select("id").eq("order_id", order.id).in("status", ["booked", "waitlisted"]);
+      for (const b of bookings ?? []) if (order.user_id) await cancelBooking(order.user_id, b.id, true);
+    }
+  }
+  await emit("order.refunded", order.user_id, { order_id: order.id, kind: order.kind, amount_pence: charge.amount_refunded, full });
 }
 
 function subscriptionIdOf(inv: Stripe.Invoice): string | null {

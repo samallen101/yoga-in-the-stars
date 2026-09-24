@@ -17,7 +17,7 @@ export default async function MePage({ searchParams }: PageProps<"/me">) {
   const sp = await searchParams;
   const db = createAdminClient();
 
-  const [{ data: membership }, { data: passes }, { data: upcoming }, { data: past }, { data: settings }, legacy, { data: plans }] = await Promise.all([
+  const [{ data: membership }, { data: passes }, { data: upcoming }, { data: past }, { data: settings }, legacy, { data: plans }, { data: ticketOrders }] = await Promise.all([
     db.from("memberships").select("*, membership_plans(*)").eq("user_id", me.user.id).neq("status", "incomplete").order("created_at", { ascending: false }).limit(1).maybeSingle(),
     db.from("class_passes").select("*, class_pass_products(name)").eq("user_id", me.user.id).gt("credits_remaining", 0).gt("expires_at", new Date().toISOString()).order("expires_at"),
     db.from("bookings").select("*, class_sessions(*, class_types(name, colour), teacher:profiles!class_sessions_teacher_id_fkey(full_name))").eq("user_id", me.user.id).in("status", ["booked", "waitlisted"]).gte("class_sessions.starts_at", new Date().toISOString()).order("created_at"),
@@ -25,7 +25,13 @@ export default async function MePage({ searchParams }: PageProps<"/me">) {
     db.from("settings").select("whatsapp_community_url").eq("id", 1).single(),
     legacyMembershipOf(me.user.id),
     db.from("membership_plans").select("id, name, price_pence, interval").eq("active", true).order("sort_order"),
+    db.from("orders").select("id, quantity, event_tickets(name), events(title, slug, starts_at)").eq("user_id", me.user.id).eq("kind", "event_ticket").eq("status", "paid"),
   ]);
+  // Paid tickets for events that haven't happened yet, soonest first.
+  const tickets = (ticketOrders ?? [])
+    .map((o) => ({ ...o, event: o.events as unknown as { title: string; slug: string; starts_at: string } | null, ticket: o.event_tickets as unknown as { name: string } | null }))
+    .filter((o) => o.event && Date.parse(o.event.starts_at) >= Date.now() - 6 * 3600_000)
+    .sort((a, b) => Date.parse(a.event!.starts_at) - Date.parse(b.event!.starts_at));
   // A paid Momo membership with nothing renewing it: offer the move. Free legacy
   // plans (teachers, home members, partners) are the team's to renew by hand.
   const legacyPlan = legacy?.membership_plans as { name: string; price_pence: number; active: boolean } | null | undefined;
@@ -82,6 +88,20 @@ export default async function MePage({ searchParams }: PageProps<"/me">) {
               </div>
             )}
           </div>
+
+          {tickets.length > 0 && (
+            <div>
+              <h2 className="text-xl font-semibold text-brand mb-3">Your tickets</h2>
+              <div className="card divide-y divide-line">
+                {tickets.map((t) => (
+                  <Link key={t.id} href={`/events/${t.event!.slug}`} className="py-2 flex justify-between gap-3 text-sm">
+                    <span>{t.event!.title} <span className="text-ink-soft">· {t.quantity > 1 ? `${t.quantity} × ` : ""}{t.ticket?.name ?? "Ticket"}</span></span>
+                    <span className="text-ink-soft whitespace-nowrap">{fmtDateTime(t.event!.starts_at)}</span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
 
           {pastList.length > 0 && (
             <div>

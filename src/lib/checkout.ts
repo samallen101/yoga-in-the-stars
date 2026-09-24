@@ -52,6 +52,7 @@ export async function checkoutForSession(opts: {
       },
     ],
     metadata: { order_id: order.id, kind: opts.kind, session_id: opts.session.id, user_id: opts.profile.id },
+    payment_intent_data: { metadata: { order_id: order.id, kind: opts.kind, session_id: opts.session.id, user_id: opts.profile.id } }, // so the payment itself shows the order in Stripe
     success_url: siteUrl(`/classes/${opts.session.id}?paid=1`),
     cancel_url: siteUrl(`/classes/${opts.session.id}`),
   });
@@ -128,6 +129,7 @@ export async function checkoutForClassPass(profile: Tables<"profiles">, product:
     ],
     allow_promotion_codes: true,
     metadata: { order_id: order!.id, kind: "class_pass", product_id: product.id, user_id: profile.id },
+    payment_intent_data: { metadata: { order_id: order!.id, kind: "class_pass", product_id: product.id, user_id: profile.id } }, // so the payment itself shows the order in Stripe
     success_url: siteUrl(`/me?pass=1`),
     cancel_url: siteUrl(`/membership`),
   });
@@ -185,6 +187,7 @@ export async function checkoutForEventTicket(opts: {
     ],
     allow_promotion_codes: true,
     metadata: { order_id: order!.id, kind: "event_ticket", event_id: event.id, user_id: profile.id },
+    payment_intent_data: { metadata: { order_id: order!.id, kind: "event_ticket", event_id: event.id, user_id: profile.id } }, // so the payment itself shows the order in Stripe
     success_url: siteUrl(`/events/${event.slug}?paid=1`),
     cancel_url: siteUrl(`/events/${event.slug}`),
   });

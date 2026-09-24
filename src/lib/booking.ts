@@ -150,7 +150,6 @@ export async function createBooking(opts: {
   if (opts.paidWith === "class_pass" && opts.classPassId && !full) {
     const { data: pass } = await db.from("class_passes").select("credits_remaining").eq("id", opts.classPassId).single();
     if (!pass || pass.credits_remaining < 1) return { ok: false, error: "That class pass has no credits left." };
-    await db.from("class_passes").update({ credits_remaining: pass.credits_remaining - 1 }).eq("id", opts.classPassId);
   }
 
   const row = {
@@ -165,11 +164,19 @@ export async function createBooking(opts: {
   } as const;
 
   const { data, error } = existing
-    ? await db.from("bookings").update(row).eq("id", existing.id).select("id").single()
-    : await db.from("bookings").insert(row).select("id").single();
+    ? await db.from("bookings").update(row).eq("id", existing.id).select("id, status").single()
+    : await db.from("bookings").insert(row).select("id, status").single();
   if (error || !data) return { ok: false, error: error?.message ?? "Could not book." };
 
-  await emit(status === "waitlisted" ? "booking.waitlisted" : "booking.created", userId, {
+  // The database has the final say on capacity (0009): if someone took the
+  // last space a moment earlier, this booking came back waitlisted.
+  const finalStatus = data.status as "booked" | "waitlisted";
+  if (finalStatus === "booked" && opts.paidWith === "class_pass" && opts.classPassId) {
+    const { data: pass } = await db.from("class_passes").select("credits_remaining").eq("id", opts.classPassId).single();
+    if (pass) await db.from("class_passes").update({ credits_remaining: Math.max(0, pass.credits_remaining - 1) }).eq("id", opts.classPassId);
+  }
+
+  await emit(finalStatus === "waitlisted" ? "booking.waitlisted" : "booking.created", userId, {
     booking_id: data.id,
     session_id: session.id,
     class_name: session.class_types.name,
@@ -177,7 +184,7 @@ export async function createBooking(opts: {
     teacher: session.teacher?.full_name ?? null,
     paid_with: opts.paidWith,
   });
-  return { ok: true, bookingId: data.id, waitlisted: status === "waitlisted" };
+  return { ok: true, bookingId: data.id, waitlisted: finalStatus === "waitlisted" };
 }
 
 /** Called by the Stripe webhook once a drop-in / PWYW payment succeeds. */
@@ -207,10 +214,11 @@ export async function confirmPaidBooking(orderId: string) {
   } as const;
 
   const { data } = existing
-    ? await db.from("bookings").update(row).eq("id", existing.id).select("id").single()
-    : await db.from("bookings").insert(row).select("id").single();
+    ? await db.from("bookings").update(row).eq("id", existing.id).select("id, status").single()
+    : await db.from("bookings").insert(row).select("id, status").single();
+  const waitlisted = (data?.status ?? (full ? "waitlisted" : "booked")) === "waitlisted";
 
-  await emit(full ? "booking.waitlisted" : "booking.created", order.user_id, {
+  await emit(waitlisted ? "booking.waitlisted" : "booking.created", order.user_id, {
     booking_id: data?.id,
     session_id: session.id,
     class_name: session.class_types.name,

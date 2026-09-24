@@ -34,9 +34,12 @@ async function main() {
   check("profile trigger + role update", prof?.role === "admin");
 
   // --- pick a session, assign teacher, make it tiny so we can test the waitlist
-  const { data: sessions } = await admin.from("class_sessions").select("id, starts_at, class_types(name)").eq("pricing", "members_included").gte("starts_at", new Date().toISOString()).order("starts_at").limit(1);
-  const session = sessions[0];
-  await admin.from("class_sessions").update({ teacher_id: users.teacher.id, capacity: 1 }).eq("id", session.id);
+  // Its own class 70 days out (off the public two-week schedule), never a real one.
+  const { data: ct } = await admin.from("class_types").insert({ name: `Smoke Test Class ${stamp}`, active: false }).select("id").single();
+  created.classType = ct.id;
+  const startsAt = new Date(Date.now() + 70 * 86400_000);
+  const { data: session } = await admin.from("class_sessions").insert({ class_type_id: ct.id, teacher_id: users.teacher.id, capacity: 1, pricing: "members_included", starts_at: startsAt.toISOString(), ends_at: new Date(startsAt.getTime() + 3600_000).toISOString() }).select("id, starts_at").single();
+  created.session = session.id;
 
   // --- grant yogi a class pass via the DB (what admin "Grant" does)
   const { data: passProduct } = await admin.from("class_pass_products").select("*").limit(1).single();
@@ -94,7 +97,7 @@ async function main() {
   // --- teacher sees register, checks in
   const teacher = await login(users.teacher);
   await teacher.goto(`${BASE}/teach`);
-  check("teacher sees their class", (await teacher.textContent("body"))?.includes(session.class_types.name));
+  check("teacher sees their class", (await teacher.textContent("body"))?.includes(`Smoke Test Class ${stamp}`));
   await teacher.goto(`${BASE}/teach/${session.id}`);
   check("register lists the member", (await teacher.textContent("body"))?.includes("Second Yogi"));
   await teacher.click("button:has-text('Check in')");
@@ -141,12 +144,29 @@ async function main() {
 
   await browser.close();
 
-  // --- cleanup
-  await admin.from("class_sessions").update({ status: "scheduled", cancel_reason: null, capacity: 16, teacher_id: null }).eq("id", session.id);
-  for (const u of Object.values(users)) await admin.auth.admin.deleteUser(u.id);
   const failed = results.filter((r) => !r.ok);
   console.log(`\n${results.length - failed.length}/${results.length} passed`);
-  process.exit(failed.length ? 1 : 0);
+  return failed.length;
 }
 
-main().catch((e) => { console.error(e); process.exit(1); });
+// Remove everything the run created, even if it stopped part-way.
+const created = { classType: null, session: null };
+async function cleanup() {
+  const ids = Object.values(users).map((u) => u.id).filter(Boolean);
+  if (created.session) {
+    await admin.from("bookings").delete().eq("session_id", created.session);
+    await admin.from("class_sessions").delete().eq("id", created.session);
+  }
+  if (created.classType) await admin.from("class_types").delete().eq("id", created.classType);
+  if (ids.length) {
+    await admin.from("bookings").delete().in("user_id", ids);
+    await admin.from("memberships").delete().in("user_id", ids);
+    await admin.from("class_passes").delete().in("user_id", ids);
+    await admin.from("outbox_events").delete().in("user_id", ids);
+  }
+  for (const id of ids) await admin.auth.admin.deleteUser(id).catch(() => {});
+}
+
+let code = 1;
+try { code = await main(); } catch (e) { console.error(e); }
+finally { await cleanup().catch((e) => console.error("cleanup failed:", e.message)); process.exit(code); }
