@@ -138,9 +138,9 @@ export default async function AdminDashboard() {
         <h2 className="font-semibold text-brand mb-3">What's been happening</h2>
         <ul className="divide-y divide-line text-sm">
           {d.recentEvents.map((e) => (
-            <li key={e.id} className="py-2 flex justify-between gap-3">
-              <span><span className="font-mono text-xs bg-bg-soft rounded px-1.5 py-0.5 mr-2">{e.type}</span>{e.profiles?.full_name ?? ""}</span>
-              <span className="text-ink-soft shrink-0">{fmtDateTime(e.created_at)}{e.delivered_at ? "" : " · queued"}</span>
+            <li key={e.id} className="py-2 flex flex-wrap justify-between gap-x-3 gap-y-1">
+              <span className="min-w-0 break-words"><span className="font-mono text-xs bg-bg-soft rounded px-1.5 py-0.5 mr-2 break-all">{e.type}</span>{e.profiles?.full_name ?? ""}</span>
+              <span className="text-ink-soft shrink-0 text-xs sm:text-sm">{fmtDateTime(e.created_at)}{e.delivered_at ? "" : " · queued"}</span>
             </li>
           ))}
           {d.recentEvents.length === 0 && <li className="py-2 text-ink-soft">Quiet so far.</li>}

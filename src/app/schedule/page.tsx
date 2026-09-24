@@ -23,7 +23,7 @@ export default async function SchedulePage() {
           {[...byDay.entries()].map(([day, list]) => (
             <section key={day}>
               <h2 className="text-lg font-semibold text-brand mb-3">{fmtDate(list[0].starts_at, "EEEE d MMMM")}</h2>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {list.map((s) => <SessionCard key={s.id} session={s} compact />)}
               </div>
             </section>
