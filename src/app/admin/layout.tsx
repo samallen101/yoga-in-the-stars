@@ -9,6 +9,8 @@ const links = [
   { href: "/admin/schedule", label: "Schedule" },
   { href: "/admin/plans", label: "Plans & passes" },
   { href: "/admin/events", label: "Events" },
+  { href: "/admin/messages", label: "Messages" },
+  { href: "/admin/switch-over", label: "Switch-over" },
   { href: "/admin/broadcast", label: "Broadcast" },
   { href: "/admin/settings", label: "Settings" },
   { href: "/admin/health", label: "Health" },

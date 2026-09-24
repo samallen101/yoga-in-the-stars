@@ -19,7 +19,7 @@ const db = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_
 const { sessions, descriptions } = JSON.parse(fs.readFileSync(process.env.TT || "/tmp/tt.json", "utf8"));
 
 const DEMO_TYPES = ["Slow Flow", "Morning Flow", "Restorative", "Breathwork", "The Yoga-Social"];
-const CAPACITY = 16; // Momo's public page doesn't show capacity; Tarin adjusts per class
+const CAPACITY = 22; // Momo's usual room size; per-class sizes are then set to match Momo's admin
 const DROP_IN = 1300;
 
 // Tidy Momo's titles a little (typos, spacing), keep the club's wording.
