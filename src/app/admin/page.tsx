@@ -21,10 +21,15 @@ export default async function AdminDashboard() {
   return (
     <div className="space-y-8">
       <PageHeader title="Dashboard" intro="The numbers Momo never gave you." />
+      {!d.membersLive && (
+        <p className="text-sm text-ink-soft -mt-2 mb-6 max-w-3xl">
+          Until switch-over, classes are booked on Momo, so attendance and renewals here come from the latest Momo import. Nudges only count paying members.
+        </p>
+      )}
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Stat label="Active members" value={d.memberCount} hint={`${d.joinedThisMonth} joined · ${d.cancelledThisMonth} left this month`} />
-        <Stat label="Need a nudge" value={d.flags.orange + d.flags.red} hint={`${d.flags.orange} orange · ${d.flags.red} red`} tone={d.flags.red > 0 ? "red" : d.flags.orange > 0 ? "orange" : "green"} />
+        <Stat label="Paying members" value={d.memberCount} hint={`plus ${d.freeMemberCount} free (teachers, home members, partners) · ${d.joinedThisMonth} joined · ${d.cancelledThisMonth} left this month`} />
+        <Stat label="Paying members to nudge" value={d.flags.orange + d.flags.red} hint={`${d.flags.orange} orange · ${d.flags.red} red`} tone={d.flags.red > 0 ? "red" : d.flags.orange > 0 ? "orange" : "green"} />
         <Stat label="Attendances (30 days)" value={d.attendance30} hint="Booked or checked in" />
         <Stat label="Taken (30 days)" value={gbp(d.revenue30)} hint="Via Stripe, all products" />
       </div>

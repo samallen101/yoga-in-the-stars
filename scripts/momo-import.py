@@ -10,7 +10,7 @@ Usage (from the repo folder, .env.local present):
   python3 scripts/momo-import.py --members <Members.csv> --orders <Orders.csv> --out <reports folder> [--dry-run]
 
 Safe to re-run: people are matched by email (and momo_id), orders by
-(invoice number, email, date, option, price), memberships/passes are only created if none exist for that person yet.
+(invoice number, email, date, option, price), Momo memberships renewed since the last run get their end date moved forward, Momo passes get Momo's current credits, and anything bought on the new site is never touched.
 """
 import argparse, csv, json, os, re, sys, time, datetime as dt, collections
 import urllib.request, urllib.parse, urllib.error
@@ -256,42 +256,89 @@ def main():
         log(f"orders inserted {inserted}")
 
     # ---- 3. current memberships and passes
-    st, have_m = sb.get("/rest/v1/memberships?select=user_id&limit=100000")
-    st, have_p = sb.get("/rest/v1/class_passes?select=user_id&limit=100000")
-    has_membership = {r["user_id"] for r in (have_m or [])}; has_pass = {r["user_id"] for r in (have_p or [])}
+    # Reads every row (Supabase caps a request at 1,000). On a re-run, Momo
+    # memberships that Momo has renewed get their end date moved forward, and
+    # Momo passes get Momo's current credits; new ones are created as before.
+    # Anything bought on the new site (Stripe) is never touched.
+    def get_all(path):
+        out = []; off = 0
+        while True:
+            st, rws = sb.get(f"{path}&offset={off}&limit=1000")
+            if not rws: break
+            out += rws
+            if len(rws) < 1000: break
+            off += 1000
+        return out
+    have_m = get_all("/rest/v1/memberships?select=id,user_id,status,source,stripe_subscription_id,current_period_end&order=created_at.desc")
+    have_p = get_all("/rest/v1/class_passes?select=id,user_id,product_id,credits_remaining,expires_at&order=created_at.desc")
+    site_pass_ids = {r["class_pass_id"] for r in get_all("/rest/v1/orders?select=class_pass_id&class_pass_id=not.is.null")}
+    m_by_user = collections.defaultdict(list); p_by_user = collections.defaultdict(list)
+    for r in have_m: m_by_user[r["user_id"]].append(r)
+    for r in have_p: p_by_user[r["user_id"]].append(r)
+    log(f"existing memberships {len(have_m)}, passes {len(have_p)}")
+
     first_start = collections.defaultdict(lambda: None)
     for o in orders:
         if o["Paid"] != "Yes": continue
         k = (norm_email(o["Email address"]), o["Order"]); sd = d(o["Start date"])
         if sd and (first_start[k] is None or sd < first_start[k]): first_start[k] = sd
-    mem_rows = []; pass_rows = []; unmapped = collections.Counter()
+
+    # latest current Momo membership / pass per person
+    cur_m = {}; cur_p = {}
     for o in orders:
         if o["Paid"] != "Yes": continue
         exp = d(o["Expiry date"])
         if not exp or exp < TODAY: continue
         e = norm_email(o["Email address"]); uid = user_id.get(e)
         if uid is None: continue
-        name = o["Order"]; sd = d(o["Start date"]) or d(o["Invoice date"]) or TODAY
+        name = o["Order"]
         if name in MEMBERSHIP_TYPE:
-            if uid in has_membership: continue
-            pname = MEMBERSHIP_MAP.get(name, "Momo legacy membership")
-            if pname == "Momo legacy membership": unmapped[name] += 1
-            mem_rows.append({"user_id": uid, "plan_id": plan_id[pname], "status": "active",
-                             "current_period_start": sd.isoformat(), "current_period_end": exp.isoformat(),
-                             "started_at": (first_start[(e, name)] or sd).isoformat()})
+            if uid not in cur_m or exp > d(cur_m[uid]["Expiry date"]): cur_m[uid] = o
         elif name in SKIP_PASS:
             continue
-        else:
-            if uid in has_pass: continue
-            credits = int(num(o["Credits"]) or 0)
-            if credits <= 0: continue
-            pname = PASS_MAP.get(name, "Momo legacy pass")
-            if pname == "Momo legacy pass": unmapped[name] += 1
-            # Momo's Credits column is the credits REMAINING; the total comes from the product
-            total = {"3 Class Pass": 3, "Three Moon Pass": 3, "10 Class Pass": 10}.get(pname, max(credits, 1))
-            pass_rows.append({"user_id": uid, "product_id": product_id[pname], "credits_total": max(total, credits),
-                              "credits_remaining": credits, "expires_at": exp.isoformat(), "created_at": sd.isoformat()})
-    log(f"memberships to create {len(mem_rows)}, passes to create {len(pass_rows)}; unmapped option names → legacy: {dict(unmapped)}")
+        elif int(num(o["Credits"]) or 0) > 0:
+            if uid not in cur_p or exp > d(cur_p[uid]["Expiry date"]): cur_p[uid] = o
+
+    mem_rows = []; pass_rows = []; mem_updates = []; pass_updates = []; unmapped = collections.Counter()
+    for uid, o in cur_m.items():
+        e = norm_email(o["Email address"]); name = o["Order"]; exp = d(o["Expiry date"])
+        sd = d(o["Start date"]) or d(o["Invoice date"]) or TODAY
+        rows_u = m_by_user.get(uid, [])
+        if any(r.get("stripe_subscription_id") for r in rows_u):
+            continue  # already moved to the new site; Stripe is the source of truth now
+        momo_rows = [r for r in rows_u if r.get("source") == "momo" and not r.get("stripe_subscription_id")]
+        if momo_rows:
+            r = momo_rows[0]
+            old_end = (r.get("current_period_end") or "")[:10]
+            if r["status"] in ("active", "past_due") and exp.isoformat() > old_end:
+                mem_updates.append((r["id"], {"current_period_end": exp.isoformat(), "status": "active"}, e, old_end, exp.isoformat()))
+            continue
+        if rows_u:
+            continue  # has a membership from somewhere else (granted by staff): leave it
+        pname = MEMBERSHIP_MAP.get(name, "Momo legacy membership")
+        if pname == "Momo legacy membership": unmapped[name] += 1
+        mem_rows.append({"user_id": uid, "plan_id": plan_id[pname], "status": "active", "source": "momo",
+                         "current_period_start": sd.isoformat(), "current_period_end": exp.isoformat(),
+                         "started_at": (first_start[(e, name)] or sd).isoformat()})
+    for uid, o in cur_p.items():
+        e = norm_email(o["Email address"]); name = o["Order"]; exp = d(o["Expiry date"])
+        credits = int(num(o["Credits"]) or 0); sd = d(o["Start date"]) or d(o["Invoice date"]) or TODAY
+        pname = PASS_MAP.get(name, "Momo legacy pass")
+        momo_passes = [r for r in p_by_user.get(uid, []) if r["id"] not in site_pass_ids]
+        if momo_passes:
+            r = momo_passes[0]
+            if r["credits_remaining"] != credits or (r.get("expires_at") or "")[:10] != exp.isoformat():
+                pass_updates.append((r["id"], {"credits_remaining": credits, "expires_at": exp.isoformat()}, e, r["credits_remaining"], credits))
+            continue
+        if pname == "Momo legacy pass": unmapped[name] += 1
+        # Momo's Credits column is the credits REMAINING; the total comes from the product
+        total = {"3 Class Pass": 3, "Three Moon Pass": 3, "10 Class Pass": 10}.get(pname, max(credits, 1))
+        pass_rows.append({"user_id": uid, "product_id": product_id[pname], "credits_total": max(total, credits),
+                          "credits_remaining": credits, "expires_at": exp.isoformat(), "created_at": sd.isoformat()})
+    log(f"memberships: {len(mem_rows)} to create, {len(mem_updates)} renewed on Momo (end date moved forward); "
+        f"passes: {len(pass_rows)} to create, {len(pass_updates)} with new credits or expiry; unmapped option names -> legacy: {dict(unmapped)}")
+    for _id, _patch, e, before, after in mem_updates[:15]: log(f"  renewed  {e}: {before} -> {after}")
+    for _id, _patch, e, before, after in pass_updates[:15]: log(f"  pass     {e}: {before} -> {after} credits")
     if not a.dry_run:
         for label, path, rws in (("memberships", "/rest/v1/memberships", mem_rows), ("passes", "/rest/v1/class_passes", pass_rows)):
             rws = [r for r in rws if not str(r["user_id"]).startswith("dry-")]
@@ -299,6 +346,11 @@ def main():
                 st, r = sb.post(path, rws[i:i+500], {"Prefer": "return=minimal"})
                 if st not in (200, 201): errors.append({"email": "", "step": f"{label} batch {i}", "status": st, "body": str(r)[:300]})
             log(f"{label} inserted {len(rws)}")
+        for table, ups in (("memberships", mem_updates), ("class_passes", pass_updates)):
+            for _id, patch, e, *_ in ups:
+                st, r = sb.patch(f"/rest/v1/{table}?id=eq.{_id}", patch)
+                if st not in (200, 204): errors.append({"email": e, "step": f"update {table}", "status": st, "body": str(r)[:300]})
+            log(f"{table} updated {len(ups)}")
 
     # ---- reports
     def w(name, rws):

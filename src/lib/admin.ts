@@ -1,4 +1,5 @@
 import "server-only";
+import { membersLive } from "@/lib/gate";
 import { createAdminClient } from "@/lib/supabase/server";
 import type { Views } from "@/lib/database.types";
 
@@ -38,7 +39,22 @@ export async function getDashboard() {
     db.from("outbox_events").select("*, profiles(full_name)").order("created_at", { ascending: false }).limit(10),
   ]);
 
-  const members = engagement.filter((e) => e.is_member);
+  // Paying vs free: teachers, home members and couples' partners hold £0
+  // memberships and many rarely book, so they don't belong in "who to nudge".
+  const payingIds = new Set<string>();
+  for (let from = 0; ; from += 1000) {
+    const { data } = await db
+      .from("memberships")
+      .select("user_id, membership_plans!inner(price_pence)")
+      .in("status", ["active", "past_due", "paused"])
+      .gt("membership_plans.price_pence", 0)
+      .range(from, from + 999);
+    for (const r of data ?? []) payingIds.add(r.user_id);
+    if (!data || data.length < 1000) break;
+  }
+  const allMembers = engagement.filter((e) => e.is_member);
+  const members = allMembers.filter((e) => payingIds.has(e.user_id!));
+  const freeMembers = allMembers.length - members.length;
   const flags = { green: 0, orange: 0, red: 0, new: 0 };
   for (const m of members) if (m.flag && m.flag in flags) flags[m.flag as keyof typeof flags]++;
 
@@ -53,6 +69,8 @@ export async function getDashboard() {
 
   return {
     memberCount: members.length,
+    freeMemberCount: freeMembers,
+    membersLive: await membersLive(),
     joinedThisMonth: joinedThisMonth ?? 0,
     cancelledThisMonth: cancelledThisMonth ?? 0,
     flags,
