@@ -3,6 +3,7 @@ import { Instrument_Sans, Instrument_Serif } from "next/font/google";
 import "./globals.css";
 import { Nav } from "@/components/nav";
 import { SiteFooter } from "@/components/site-footer";
+import { TestModeBanner } from "@/components/test-mode-banner";
 import { createAdminClient, getCurrentUser } from "@/lib/supabase/server";
 
 const sans = Instrument_Sans({ variable: "--font-instrument-sans", subsets: ["latin"], weight: ["400", "500", "600", "700"] });
@@ -21,6 +22,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${sans.variable} ${serif.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">
+        <TestModeBanner />
         <Nav profile={me?.profile ?? null} promoText={settings?.promo_text ?? null} promoUrl={settings?.promo_url ?? "/membership"} />
         <main className="flex-1 w-full max-w-6xl mx-auto px-4 sm:px-6 py-8">{children}</main>
         <SiteFooter settings={settings} />
