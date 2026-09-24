@@ -109,7 +109,7 @@ async function main() {
   const adm = await login(users.admin);
   await adm.goto(`${BASE}/admin`);
   const dash = await adm.textContent("body");
-  check("admin dashboard renders", dash?.includes("Active members"));
+  check("admin dashboard renders", dash?.includes("Paying members"));
   await adm.goto(`${BASE}/admin/people?flag=members`);
   check("people list shows member", (await adm.textContent("body"))?.includes("Second Yogi"));
   await adm.goto(`${BASE}/admin/people/${users.yogi.id}`);
