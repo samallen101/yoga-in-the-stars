@@ -133,7 +133,11 @@ async function main() {
   const { data: passProducts } = await db.from("class_pass_products").select("*");
   const threePass = passProducts.find((p) => p.credits === 3) ?? passProducts[0];
 
-  browser = await chromium.launch();
+  // Real Google Chrome in a normal window: Stripe's checkout stalls for headless browsers.
+  // HEADLESS=1 falls back to the bundled headless Chromium.
+  browser = process.env.HEADLESS === "1"
+    ? await chromium.launch()
+    : await chromium.launch({ channel: "chrome", headless: false, args: ["--window-size=1280,900"] });
 
   // ---------- 2. Paying, all four kinds
   await step(async () => {
@@ -268,19 +272,26 @@ async function main() {
     if (m?.stripe_subscription_id) {
       const sub = await stripe.subscriptions.retrieve(m.stripe_subscription_id);
       created.customers.push(sub.customer);
+      // Leave only a card that attaches but fails when charged, then bill now.
       const failing = await stripe.paymentMethods.attach("pm_card_chargeCustomerFail", { customer: sub.customer });
+      const existingPms = await stripe.paymentMethods.list({ customer: sub.customer, type: "card" });
+      for (const pm of existingPms.data) if (pm.id !== failing.id) await stripe.paymentMethods.detach(pm.id);
+      await stripe.customers.update(sub.customer, { invoice_settings: { default_payment_method: failing.id } });
       await stripe.subscriptions.update(sub.id, { default_payment_method: failing.id });
-      await stripe.subscriptions.update(sub.id, { billing_cycle_anchor: "now", proration_behavior: "none" }).catch((e) => console.log("anchor update:", e.message));
-      const after = await stripe.subscriptions.retrieve(sub.id, { expand: ["latest_invoice"] });
-      console.log("stripe after forcing renewal:", after.status, "invoice", after.latest_invoice?.status, after.latest_invoice?.amount_due);
+      // Raise a renewal invoice on the subscription and charge the failing card.
+      await stripe.invoiceItems.create({ customer: sub.customer, subscription: sub.id, amount: 7900, currency: "gbp", description: "E2E forced renewal" });
+      const inv = await stripe.invoices.create({ customer: sub.customer, subscription: sub.id, collection_method: "charge_automatically", auto_advance: false });
+      await stripe.invoices.finalizeInvoice(inv.id);
+      const payTry = await stripe.invoices.pay(inv.id).then(() => "paid (unexpected)").catch((e) => `declined as expected: ${e.code ?? e.message}`);
+      console.log("forced renewal:", payTry);
       const pastDue = await waitFor(async () => (await db.from("memberships").select("status").eq("id", m.id).single()).data?.status === "past_due", 90_000);
       check("3", "failed renewal puts the membership past due", pastDue);
       const { data: ev1 } = await db.from("outbox_events").select("type").eq("user_id", renewer.id).ilike("type", "%fail%");
       check("3", "failed renewal tells the team (outbox event)", ev1?.length, ev1?.map((e) => e.type).join(", "));
       const good = await stripe.paymentMethods.attach("pm_card_visa", { customer: sub.customer });
       await stripe.subscriptions.update(sub.id, { default_payment_method: good.id });
-      const latest = (await stripe.subscriptions.retrieve(sub.id)).latest_invoice;
-      await stripe.invoices.pay(typeof latest === "string" ? latest : latest.id, { payment_method: good.id }).catch((e) => console.log("invoice pay:", e.message));
+      await stripe.customers.update(sub.customer, { invoice_settings: { default_payment_method: good.id } });
+      await stripe.invoices.pay(inv.id, { payment_method: good.id }).catch((e) => console.log("invoice pay:", e.message));
       const back = await waitFor(async () => (await db.from("memberships").select("status").eq("id", m.id).single()).data?.status === "active", 90_000);
       check("3", "new card and a successful payment bring it back to active", back);
     } else check("3", "failed renewal setup", false, "membership did not start");
