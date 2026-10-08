@@ -22,11 +22,17 @@ function back(sessionId: string, msg: string): never {
 export async function markAttendance(formData: FormData) {
   const sessionId = String(formData.get("session_id"));
   await staffOrRedirect(sessionId);
-  const status = String(formData.get("status")) as "attended" | "booked" | "no_show";
+  const raw = String(formData.get("status"));
+  if (raw !== "attended" && raw !== "booked" && raw !== "no_show") back(sessionId, "Unknown attendance status.");
+  const status = raw as "attended" | "booked" | "no_show";
+  // Only bookings on this class, and never one that was cancelled or is still
+  // waitlisted (marking those "attended" would put someone over capacity).
   await createAdminClient()
     .from("bookings")
     .update({ status, checked_in_at: status === "attended" ? new Date().toISOString() : null })
-    .eq("id", String(formData.get("booking_id")));
+    .eq("id", String(formData.get("booking_id")))
+    .eq("session_id", sessionId)
+    .in("status", ["booked", "attended", "no_show"]);
   revalidatePath(`/teach/${sessionId}`);
   redirect(`/teach/${sessionId}`);
 }
