@@ -1,6 +1,7 @@
 import "server-only";
 import { stripe, siteUrl } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase/server";
+import { emit } from "@/lib/outbox";
 import type { Tables } from "@/lib/database.types";
 
 /** Find or create the Stripe customer for a profile. */
@@ -167,8 +168,16 @@ export async function checkoutForEventTicket(opts: {
     .single();
 
   if (unit === 0) {
-    // Free ticket: no Stripe needed.
+    // Free ticket: no Stripe needed. Emit the same event a paid ticket does, so
+    // the confirmation email and team alert still go out.
     await db.from("orders").update({ status: "paid", paid_at: new Date().toISOString() }).eq("id", order!.id);
+    await emit("event_ticket.purchased", profile.id, {
+      event: event.title,
+      starts_at: event.starts_at,
+      quantity,
+      amount_pence: 0,
+      member_price: isMember && ticket.member_price_pence != null,
+    });
     return siteUrl(`/events/${event.slug}?paid=1`);
   }
 
