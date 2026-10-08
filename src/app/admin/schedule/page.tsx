@@ -3,10 +3,12 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { fmtDateTime, TZ } from "@/lib/format";
 import { PageHeader, Notice, StatusPill } from "@/components/ui";
 import { saveClassType, createSessions, deleteSession, saveLocation, updateSession } from "./actions";
+import { requireAdminPage } from "@/lib/admin-guard";
 
 export const metadata = { title: "Schedule admin" };
 
 export default async function AdminSchedulePage({ searchParams }: PageProps<"/admin/schedule">) {
+  await requireAdminPage("/admin/schedule");
   const sp = await searchParams;
   const db = createAdminClient();
   const [{ data: types }, { data: teachers }, { data: locations }, { data: sessions }] = await Promise.all([

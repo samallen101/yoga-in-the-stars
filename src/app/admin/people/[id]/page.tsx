@@ -3,8 +3,10 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { fmtDate, fmtDateTime, gbp } from "@/lib/format";
 import { BackLink, FlagPill, Notice, StatusPill } from "@/components/ui";
 import { saveNotes, setRole, grantClassPass, grantMembership, adjustPass, adjustMembership, staffCancelBooking, compBooking, recordPayment } from "./actions";
+import { requireAdminPage } from "@/lib/admin-guard";
 
 export default async function PersonPage({ params, searchParams }: PageProps<"/admin/people/[id]">) {
+  await requireAdminPage("/admin/people");
   const { id } = await params;
   const sp = await searchParams;
   const db = createAdminClient();

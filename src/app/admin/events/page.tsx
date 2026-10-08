@@ -3,10 +3,12 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { fmtDateTime, gbp } from "@/lib/format";
 import { PageHeader, Notice, StatusPill } from "@/components/ui";
 import { saveEvent, saveTicket, setEventStatus } from "./actions";
+import { requireAdminPage } from "@/lib/admin-guard";
 
 export const metadata = { title: "Events admin" };
 
 export default async function AdminEventsPage({ searchParams }: PageProps<"/admin/events">) {
+  await requireAdminPage("/admin/events");
   const sp = await searchParams;
   const db = createAdminClient();
   const [{ data: events }, { data: locations }] = await Promise.all([

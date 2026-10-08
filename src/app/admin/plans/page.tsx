@@ -2,10 +2,12 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { gbp } from "@/lib/format";
 import { PageHeader, Notice } from "@/components/ui";
 import { savePlan, savePass, toggleActive } from "./actions";
+import { requireAdminPage } from "@/lib/admin-guard";
 
 export const metadata = { title: "Plans & passes" };
 
 export default async function PlansPage({ searchParams }: PageProps<"/admin/plans">) {
+  await requireAdminPage("/admin/plans");
   const sp = await searchParams;
   const db = createAdminClient();
   const [{ data: plans }, { data: passes }] = await Promise.all([

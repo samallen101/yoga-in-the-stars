@@ -3,10 +3,12 @@ import { getDashboard } from "@/lib/admin";
 import { fmtDate, fmtDateTime, gbp } from "@/lib/format";
 import { PageHeader, Stat, FlagPill } from "@/components/ui";
 import { createAdminClient } from "@/lib/supabase/server";
+import { requireAdminPage } from "@/lib/admin-guard";
 
 export const metadata = { title: "Admin" };
 
 export default async function AdminDashboard() {
+  await requireAdminPage();
   const d = await getDashboard();
   // Memberships that came over from Momo and have nothing renewing them.
   const { data: legacyRows } = await createAdminClient()

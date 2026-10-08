@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createAdminClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/ui";
 import { fmtDate, gbp } from "@/lib/format";
+import { requireAdminPage } from "@/lib/admin-guard";
 
 export const metadata = { title: "Switch-over" };
 
@@ -19,6 +20,7 @@ function weekOf(iso: string) {
 }
 
 export default async function SwitchOverPage() {
+  await requireAdminPage("/admin/switch-over");
   const db = createAdminClient();
   const rows: Row[] = [];
   for (let from = 0; ; from += 1000) {
