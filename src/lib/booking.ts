@@ -74,12 +74,16 @@ export async function getEntitlement(userId: string | null, session: Session): P
   }
 
   if (userId) {
-    // Active membership?
+    // Active membership? Same rule as is_active_member() in the database (and so
+    // the dashboard): status active AND the paid period has not ended. Imported
+    // Momo memberships have nothing renewing them, so without the date check a
+    // lapsed one kept booking classes for free.
     const { data: membership } = await db
       .from("memberships")
       .select("*, membership_plans(*)")
       .eq("user_id", userId)
       .eq("status", "active")
+      .or(`current_period_end.is.null,current_period_end.gt."${new Date().toISOString()}"`)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
