@@ -26,6 +26,7 @@ export async function POST(request: NextRequest) {
   try {
     switch (event.type) {
       case "checkout.session.completed":
+      case "checkout.session.async_payment_succeeded":
         await onCheckoutCompleted(event.data.object);
         break;
       case "customer.subscription.updated":
@@ -56,11 +57,17 @@ async function onCheckoutCompleted(cs: Stripe.Checkout.Session) {
   const db = createAdminClient();
   const orderId = cs.metadata?.order_id;
   if (!orderId) return;
+  // Delayed payment methods (e.g. bank debits) complete checkout before the
+  // money arrives; wait for checkout.session.async_payment_succeeded instead.
+  // ("no_payment_required" is a membership starting with a free run-up.)
+  if (cs.payment_status === "unpaid") return;
   const { data: order } = await db.from("orders").select("*").eq("id", orderId).single();
   if (!order || order.status === "paid") return;
 
   const paymentIntent = typeof cs.payment_intent === "string" ? cs.payment_intent : cs.payment_intent?.id ?? null;
-  await db
+  // Claim the order atomically: Stripe can deliver the same event twice at
+  // once, and only one delivery may grant the pass, booking or ticket.
+  const { data: claimed } = await db
     .from("orders")
     .update({
       status: "paid",
@@ -68,7 +75,10 @@ async function onCheckoutCompleted(cs: Stripe.Checkout.Session) {
       amount_pence: cs.amount_total ?? order.amount_pence,
       stripe_payment_intent_id: paymentIntent,
     })
-    .eq("id", orderId);
+    .eq("id", orderId)
+    .neq("status", "paid")
+    .select("id");
+  if (!claimed?.length) return;
 
   switch (order.kind) {
     case "drop_in":
