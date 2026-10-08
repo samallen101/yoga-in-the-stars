@@ -44,7 +44,7 @@ export async function grantClassPass(formData: FormData) {
 export async function grantMembership(formData: FormData) {
   await requireRole("admin");
   const id = String(formData.get("user_id"));
-  const days = Math.max(1, Number(formData.get("days") ?? 30));
+  const days = wholeDays(formData.get("days"));
   const db = createAdminClient();
   const { data: plan } = await db.from("membership_plans").select("*").eq("id", String(formData.get("plan_id"))).single();
   if (!plan) back(id, "Plan not found.");
@@ -98,6 +98,16 @@ export async function adjustMembership(formData: FormData) {
   const { data: m } = await db.from("memberships").select("*, membership_plans(name)").eq("id", mId).eq("user_id", id).single();
   if (!m) back(id, "Membership not found.");
   if (action === "end") {
+    // A Stripe membership must be cancelled in Stripe too, or the card keeps
+    // being charged and the next renewal webhook marks it active again.
+    if (m.stripe_subscription_id) {
+      try {
+        await stripe().subscriptions.cancel(m.stripe_subscription_id);
+      } catch (err) {
+        const code = (err as { code?: string }).code;
+        if (code !== "resource_missing") back(id, `Stripe would not cancel it: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
     await db.from("memberships").update({ status: "cancelled", ended_at: new Date().toISOString(), current_period_end: new Date().toISOString() }).eq("id", mId);
     await emit("membership.ended_by_staff", id, { membership_id: mId, plan: m.membership_plans?.name, by: me.user.id });
     back(id, `✓ ${m.membership_plans?.name} ended.`);
@@ -136,7 +146,7 @@ export async function adjustMembership(formData: FormData) {
     back(id, `✓ ${m.membership_plans?.name} resumed.`);
   }
 
-  const days = Math.max(1, Number(formData.get("days") ?? 30));
+  const days = wholeDays(formData.get("days"));
   const base = m.current_period_end && new Date(m.current_period_end) > new Date() ? new Date(m.current_period_end) : new Date();
   const end = new Date(base.getTime() + days * 86400_000).toISOString();
   await db.from("memberships").update({ status: "active", current_period_end: end, ended_at: null }).eq("id", mId);
@@ -180,4 +190,10 @@ export async function recordPayment(formData: FormData) {
   });
   await emit("payment.recorded", id, { amount_pence: Math.round(pounds * 100), description, method, by: me.user.id });
   back(id, `✓ Recorded £${pounds.toFixed(2)} (${method}). Grant the pass or membership above if it comes with one.`);
+}
+
+/** A whole number of days from a form field: at least 1, 30 when blank or not a number. */
+function wholeDays(v: FormDataEntryValue | null) {
+  const n = Math.floor(Number(v ?? 30));
+  return Number.isFinite(n) ? Math.max(1, n) : 30;
 }

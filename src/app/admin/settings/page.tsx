@@ -1,10 +1,12 @@
 import { createAdminClient } from "@/lib/supabase/server";
 import { PageHeader, Notice } from "@/components/ui";
 import { saveSettings } from "./actions";
+import { requireAdminPage } from "@/lib/admin-guard";
 
 export const metadata = { title: "Settings" };
 
 export default async function SettingsPage({ searchParams }: PageProps<"/admin/settings">) {
+  await requireAdminPage("/admin/settings");
   const sp = await searchParams;
   const { data: s } = await createAdminClient().from("settings").select("*").eq("id", 1).single();
   const msg = typeof sp.msg === "string" ? sp.msg : null;

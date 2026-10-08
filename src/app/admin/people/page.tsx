@@ -3,10 +3,12 @@ import { getEngagement } from "@/lib/admin";
 import { createAdminClient } from "@/lib/supabase/server";
 import { fmtDate } from "@/lib/format";
 import { PageHeader, FlagPill } from "@/components/ui";
+import { requireAdminPage } from "@/lib/admin-guard";
 
 export const metadata = { title: "People" };
 
 export default async function PeoplePage({ searchParams }: PageProps<"/admin/people">) {
+  await requireAdminPage("/admin/people");
   const sp = await searchParams;
   const flag = typeof sp.flag === "string" ? sp.flag : "all";
   const q = typeof sp.q === "string" ? sp.q.toLowerCase() : "";

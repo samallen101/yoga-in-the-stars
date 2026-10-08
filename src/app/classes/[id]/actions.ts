@@ -40,7 +40,8 @@ export async function bookSession(formData: FormData) {
       break;
     }
     case "pay_what_you_wish": {
-      const pounds = Number(formData.get("amount") ?? 0);
+      const pounds = Number(String(formData.get("amount") ?? "0").replace(/[£,\s]/g, "") || 0);
+      if (!Number.isFinite(pounds)) back(sessionId, "Enter an amount in pounds, for example 8.");
       const pence = Math.max(0, Math.round(pounds * 100));
       if (pence === 0) {
         const r = await createBooking({ userId: me.user.id, session, paidWith: "free" });

@@ -3,10 +3,12 @@ import { getEngagement } from "@/lib/admin";
 import { fmtDateTime } from "@/lib/format";
 import { PageHeader, Notice } from "@/components/ui";
 import { sendBroadcast } from "./actions";
+import { requireAdminPage } from "@/lib/admin-guard";
 
 export const metadata = { title: "Broadcast" };
 
 export default async function BroadcastPage({ searchParams }: PageProps<"/admin/broadcast">) {
+  await requireAdminPage("/admin/broadcast");
   const sp = await searchParams;
   const db = createAdminClient();
   const [engagement, { data: sessions }, { data: history }] = await Promise.all([

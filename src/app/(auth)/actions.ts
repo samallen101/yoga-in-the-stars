@@ -3,11 +3,9 @@
 import { redirect } from "next/navigation";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { siteUrl } from "@/lib/stripe";
+import { safeNext } from "@/lib/safe-next";
+import { pickSource } from "@/lib/signup-source";
 
-function safeNext(v: FormDataEntryValue | null) {
-  const s = typeof v === "string" ? v : "/me";
-  return s.startsWith("/") && !s.startsWith("//") ? s : "/me";
-}
 
 export async function signIn(formData: FormData) {
   const supabase = await createClient();
@@ -40,12 +38,13 @@ export async function signUp(formData: FormData) {
   const full_name = String(formData.get("full_name") ?? "").trim();
   const phone = String(formData.get("phone") ?? "").trim() || null;
   const whatsapp_opt_in = formData.get("whatsapp_opt_in") === "on";
+  const source = pickSource((k) => formData.get(k));
 
   const { data, error } = await supabase.auth.signUp({
     email,
     password: String(formData.get("password") ?? ""),
     options: {
-      data: { full_name, phone },
+      data: { full_name, phone, ...(source ? { signup_source: source } : {}) },
       emailRedirectTo: siteUrl(`/auth/callback?next=${encodeURIComponent(next)}`),
     },
   });
@@ -57,7 +56,7 @@ export async function signUp(formData: FormData) {
     await admin.rpc("emit_event", {
       p_type: "user.registered",
       p_user_id: data.user.id,
-      p_payload: { email, full_name, phone, whatsapp_opt_in },
+      p_payload: { email, full_name, phone, whatsapp_opt_in, ...(source ? { source } : {}) },
     });
   }
 

@@ -1,12 +1,18 @@
 import "server-only";
 import { Resend } from "resend";
 import { mayMessage } from "@/lib/gate";
+import { outboundEnabled } from "@/lib/pause";
 
 /**
  * Transactional email. If RESEND_API_KEY is missing (local dev) the email is
  * logged instead of sent, so nothing breaks before the account exists.
  */
 export async function sendEmail(opts: { to: string; subject: string; text: string; html?: string }): Promise<{ ok: boolean; dev?: boolean; held?: boolean; error?: unknown }> {
+  // Hard stop (src/lib/pause.ts): nothing goes out, not even to test addresses.
+  if (!outboundEnabled()) {
+    console.log(`[email:paused] to=${opts.to} subject=${opts.subject}`);
+    return { ok: true, held: true };
+  }
   // Launch gate: before go-live only allowlisted test addresses get anything.
   if (!(await mayMessage(opts.to))) {
     console.log(`[email:held] to=${opts.to} subject=${opts.subject}`);
@@ -24,11 +30,16 @@ export async function sendEmail(opts: { to: string; subject: string; text: strin
     to: opts.to,
     subject: opts.subject,
     text: opts.text,
-    html: opts.html ?? `<div style="font-family:system-ui,sans-serif;line-height:1.5;max-width:560px">${opts.text.split("\n").map((l) => `<p>${l || "&nbsp;"}</p>`).join("")}</div>`,
+    html: opts.html ?? `<div style="font-family:system-ui,sans-serif;line-height:1.5;max-width:560px">${opts.text.split("\n").map((l) => `<p>${escapeHtml(l) || "&nbsp;"}</p>`).join("")}</div>`,
   });
   if (error) {
     console.error("[email]", error);
     return { ok: false, error };
   }
   return { ok: true };
+}
+
+/** Text that came from people (names, messages) must not become markup in the HTML part. */
+function escapeHtml(s: string) {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }

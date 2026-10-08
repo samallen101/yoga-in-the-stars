@@ -3,6 +3,7 @@ import { memberEmail } from "@/lib/member-messages";
 import { getGate } from "@/lib/gate";
 import { PageHeader } from "@/components/ui";
 import templates from "../../../../n8n/whatsapp-templates.json";
+import { requireAdminPage } from "@/lib/admin-guard";
 
 export const metadata = { title: "Messages" };
 
@@ -70,6 +71,7 @@ function fillTemplate(t: Tpl) {
 }
 
 export default async function MessagesPage() {
+  await requireAdminPage("/admin/messages");
   const { data: settings } = await createAdminClient().from("settings").select("club_name, whatsapp_community_url").eq("id", 1).single();
   const club = settings?.club_name ?? "Yoga in the Stars";
   const gate = await getGate().catch(() => ({ live: false, liveFrom: null, allowlist: [] as string[] }));

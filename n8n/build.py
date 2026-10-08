@@ -61,7 +61,7 @@ const teamAlert = (text) => { for (const to of club.team_numbers || []) out.push
 
 switch (type) {
   case 'user.registered':
-    teamAlert(`New registration: ${user?.full_name || user?.email}`);
+    teamAlert(`New registration: ${user?.full_name || user?.email}${payload.source ? ` (from ${[payload.source.utm_source || payload.source.ref, payload.source.utm_campaign].filter(Boolean).join(', ')})` : ''}`);
     break;
 
   case 'membership.purchased':

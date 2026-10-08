@@ -2,11 +2,13 @@ import { runHealthChecks } from "@/lib/health";
 import { createAdminClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/ui";
 import { fmtDateTime } from "@/lib/format";
+import { requireAdminPage } from "@/lib/admin-guard";
 
 export const metadata = { title: "Health" };
 export const dynamic = "force-dynamic";
 
 export default async function HealthPage() {
+  await requireAdminPage("/admin/health");
   const [h, recent] = await Promise.all([
     runHealthChecks(),
     createAdminClient().from("outbox_events").select("id, type, created_at, delivered_at, emailed_at, attempts, last_error").order("created_at", { ascending: false }).limit(25),

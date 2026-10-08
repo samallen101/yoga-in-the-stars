@@ -2,6 +2,7 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/server";
 import type { Json } from "@/lib/database.types";
 import { getGate } from "@/lib/gate";
+import { outboundEnabled } from "@/lib/pause";
 
 /**
  * Write a business event to the outbox. A cron job forwards undelivered events
@@ -32,6 +33,14 @@ export async function flushOutbox(limit = 50) {
     .limit(limit);
 
   if (!events?.length) return { delivered: 0, failed: 0 };
+  // Hard stop (src/lib/pause.ts): nothing reaches n8n, so no WhatsApp and no team pings.
+  // Events are closed off rather than left waiting, so switching on later doesn't
+  // release a backlog of old messages all at once.
+  if (!outboundEnabled()) {
+    console.log(`[outbox] paused; not forwarding ${events.length} event(s)`);
+    await db.from("outbox_events").update({ delivered_at: new Date().toISOString(), last_error: "paused: not forwarded" }).in("id", events.map((e) => e.id));
+    return { delivered: 0, failed: 0 };
+  }
   if (!url) {
     // No n8n configured yet: mark as delivered so the table doesn't grow forever, but log it.
     console.log(`[outbox] N8N_WEBHOOK_URL not set; dropping ${events.length} event(s)`);

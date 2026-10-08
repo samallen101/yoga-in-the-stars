@@ -3,8 +3,11 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { fmtDate, fmtDateTime, gbp } from "@/lib/format";
 import { BackLink, FlagPill, Notice, StatusPill } from "@/components/ui";
 import { saveNotes, setRole, grantClassPass, grantMembership, adjustPass, adjustMembership, staffCancelBooking, compBooking, recordPayment } from "./actions";
+import { requireAdminPage } from "@/lib/admin-guard";
+import { sourceLabel, type SignupSource } from "@/lib/signup-source";
 
 export default async function PersonPage({ params, searchParams }: PageProps<"/admin/people/[id]">) {
+  await requireAdminPage("/admin/people");
   const { id } = await params;
   const sp = await searchParams;
   const db = createAdminClient();
@@ -19,11 +22,14 @@ export default async function PersonPage({ params, searchParams }: PageProps<"/a
     db.from("membership_plans").select("id, name").eq("active", true),
     db.from("class_pass_products").select("id, name, credits").eq("active", true),
   ]);
-  const [{ data: momoOrders }, { data: upcoming }] = await Promise.all([
+  const [{ data: momoOrders }, { data: upcoming }, { data: authUser }] = await Promise.all([
     db.from("momo_orders").select("invoice_date, pricing_option, price, paid, payment_method, credits, start_date, expiry_date").eq("user_id", id).order("invoice_date", { ascending: false }).limit(30),
     db.from("class_sessions").select("id, starts_at, class_types(name)").eq("status", "scheduled").gte("starts_at", new Date().toISOString()).order("starts_at").limit(30),
+    db.auth.admin.getUserById(id).catch(() => ({ data: null })),
   ]);
   if (!p) notFound();
+  // Which ad or post brought them in, if they registered from a tagged link.
+  const cameFrom = sourceLabel(authUser?.user?.user_metadata?.signup_source as SignupSource | undefined);
   const msg = typeof sp.msg === "string" ? sp.msg : null;
   const wa = p.phone ? `https://wa.me/${p.phone.replace(/[^0-9]/g, "").replace(/^0/, "44")}` : null;
 
@@ -33,7 +39,7 @@ export default async function PersonPage({ params, searchParams }: PageProps<"/a
       <div className="card flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-brand">{p.full_name || p.email}</h1>
-          <div className="text-sm text-ink-soft">{p.email}{p.phone ? ` · ${p.phone}` : ""} · joined {fmtDate(p.created_at, "d MMM yyyy")}</div>
+          <div className="text-sm text-ink-soft">{p.email}{p.phone ? ` · ${p.phone}` : ""} · joined {fmtDate(p.created_at, "d MMM yyyy")}{cameFrom ? ` · came from ${cameFrom}` : ""}</div>
           <div className="mt-2 flex items-center gap-2">
             <span className="pill bg-brand-soft text-brand">{p.role}</span>
             {eng && <FlagPill flag={eng.flag} />}

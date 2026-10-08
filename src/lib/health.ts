@@ -1,5 +1,6 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/server";
+import { outboundEnabled, livePaymentsEnabled } from "@/lib/pause";
 
 /** The checks behind /api/health and Admin → Health. */
 export type Check = { name: string; ok: boolean; warn?: boolean; detail: string; ms?: number };
@@ -60,6 +61,12 @@ export async function runHealthChecks(): Promise<{ status: string; checked_at: s
   }
 
   // 5. Email configured
+  checks.push({
+    name: "hard stop",
+    ok: true,
+    warn: outboundEnabled() || livePaymentsEnabled(),
+    detail: `email and WhatsApp ${outboundEnabled() ? "ON" : "paused (nothing is sent)"}; live payments ${livePaymentsEnabled() ? "ON" : "blocked"}`,
+  });
   checks.push({ name: "email", ok: true, warn: !process.env.RESEND_API_KEY, detail: process.env.RESEND_API_KEY ? "Resend key set" : "no email provider yet: emails are logged, not sent" });
 
   // 6. Member messages gate (held before switch-over; test addresses only)
