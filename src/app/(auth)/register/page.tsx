@@ -4,12 +4,15 @@ import { signUp } from "../actions";
 import { Notice } from "@/components/ui";
 import { getCurrentUser } from "@/lib/supabase/server";
 import { safeNext } from "@/lib/safe-next";
+import { pickSource } from "@/lib/signup-source";
 
 export default async function RegisterPage({ searchParams }: PageProps<"/register">) {
   const sp = await searchParams;
   const next = safeNext(sp.next);
   const error = typeof sp.error === "string" ? sp.error : null;
   const check = sp.check === "1";
+  // Ad and post links say where they came from (?utm_source=..., ?ref=...); carry it through the form.
+  const source = pickSource((k) => sp[k]);
   if (await getCurrentUser()) redirect(next);
 
   return (
@@ -22,6 +25,7 @@ export default async function RegisterPage({ searchParams }: PageProps<"/registe
 
       <form action={signUp} className="card space-y-4">
         <input type="hidden" name="next" value={next} />
+        {source && Object.entries(source).map(([k, v]) => <input key={k} type="hidden" name={k} value={v} />)}
         <div>
           <label className="label" htmlFor="full_name">Your name</label>
           <input id="full_name" name="full_name" required className="input" autoComplete="name" />
