@@ -1,12 +1,18 @@
 import "server-only";
 import { Resend } from "resend";
 import { mayMessage } from "@/lib/gate";
+import { outboundEnabled } from "@/lib/pause";
 
 /**
  * Transactional email. If RESEND_API_KEY is missing (local dev) the email is
  * logged instead of sent, so nothing breaks before the account exists.
  */
 export async function sendEmail(opts: { to: string; subject: string; text: string; html?: string }): Promise<{ ok: boolean; dev?: boolean; held?: boolean; error?: unknown }> {
+  // Hard stop (src/lib/pause.ts): nothing goes out, not even to test addresses.
+  if (!outboundEnabled()) {
+    console.log(`[email:paused] to=${opts.to} subject=${opts.subject}`);
+    return { ok: true, held: true };
+  }
   // Launch gate: before go-live only allowlisted test addresses get anything.
   if (!(await mayMessage(opts.to))) {
     console.log(`[email:held] to=${opts.to} subject=${opts.subject}`);
