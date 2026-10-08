@@ -3,10 +3,11 @@ import { redirect } from "next/navigation";
 import { signUp } from "../actions";
 import { Notice } from "@/components/ui";
 import { getCurrentUser } from "@/lib/supabase/server";
+import { safeNext } from "@/lib/safe-next";
 
 export default async function RegisterPage({ searchParams }: PageProps<"/register">) {
   const sp = await searchParams;
-  const next = typeof sp.next === "string" ? sp.next : "/me";
+  const next = safeNext(sp.next);
   const error = typeof sp.error === "string" ? sp.error : null;
   const check = sp.check === "1";
   if (await getCurrentUser()) redirect(next);

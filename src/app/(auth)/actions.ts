@@ -3,11 +3,8 @@
 import { redirect } from "next/navigation";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { siteUrl } from "@/lib/stripe";
+import { safeNext } from "@/lib/safe-next";
 
-function safeNext(v: FormDataEntryValue | null) {
-  const s = typeof v === "string" ? v : "/me";
-  return s.startsWith("/") && !s.startsWith("//") ? s : "/me";
-}
 
 export async function signIn(formData: FormData) {
   const supabase = await createClient();

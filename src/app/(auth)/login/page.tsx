@@ -3,10 +3,11 @@ import { redirect } from "next/navigation";
 import { signIn, sendMagicLink } from "../actions";
 import { Notice } from "@/components/ui";
 import { getCurrentUser } from "@/lib/supabase/server";
+import { safeNext } from "@/lib/safe-next";
 
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   const sp = await searchParams;
-  const next = typeof sp.next === "string" ? sp.next : "/me";
+  const next = safeNext(sp.next);
   const error = typeof sp.error === "string" ? sp.error : null;
   const sent = sp.sent === "1";
   if (await getCurrentUser()) redirect(next);
